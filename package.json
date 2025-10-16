@@ -1,0 +1,26 @@
+{
+  "name": "ai-to-vscode-bridge",
+  "version": "1.0.0",
+  "description": "将AI对话内容发送到VS Code",
+  "scripts": {
+    "dev": "webpack --config webpack.dev.js",
+    "build": "webpack --config webpack.prod.js",
+    "watch": "webpack --watch --config webpack.dev.js"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.1.24",
+    "@types/node": "^24.7.2",
+    "@types/webpack": "^5.28.5",
+    "@types/ws": "^8.18.1",
+    "copy-webpack-plugin": "^12.0.2",
+    "ts-loader": "^9.5.4",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3",
+    "webpack": "^5.102.1",
+    "webpack-cli": "^5.1.4",
+    "webpack-merge": "^5.10.0"
+  },
+  "dependencies": {
+    "ws": "^8.18.3"
+  }
+}

@@ -1,0 +1,424 @@
+---
+description: Command execution guidelines for AEC computational design projects (C#, Avalonia, Grasshopper, Revit)
+globs: command-execution.mdc
+alwaysApply: false
+---
+
+# COMMAND EXECUTION SYSTEM (AEC EDITION)
+
+> **TL;DR:** Command execution guidelines optimized for C# + Avalonia + Grasshopper + Revit development workflows, covering .NET CLI, MSBuild, NuGet, and platform-specific build processes.
+
+## 🔍 COMMAND EFFICIENCY WORKFLOW
+
+```
+graph TD
+    Start["Command Planning"] --> Analyze["Analyze Command Requirements"]
+    Analyze --> Balance["Balance Clarity vs. Efficiency"]
+    Balance --> Complexity{"Command Complexity?"}
+    Complexity -->|"Simple"| Single["Execute Single Command"]
+    Complexity -->|"Moderate"| Chain["Use Efficient Command Chaining"]
+    Complexity -->|"Complex"| Group["Group Into Logical Steps"]
+    Single & Chain & Group --> Verify["Verify Results"]
+    Verify --> Document["Document Command & Result"]
+    Document --> Next["Next Command"]
+```
+
+## 📋 PROJECT TYPE DETECTION WORKFLOW
+
+```
+graph TD
+    Command["Command Execution"] --> DirCheck["Check Current Directory"]
+    DirCheck --> ProjectType{"Project Type?"}
+    ProjectType -->|"Grasshopper"| GH["Verify .gha Output Path"]
+    ProjectType -->|"Revit"| Revit["Verify .addin Manifest"]
+    ProjectType -->|"Avalonia"| Avalonia["Check .axaml Files"]
+    ProjectType -->|"WPF"| WPF["Check .xaml Files"]
+    GH --> Execute["Execute Command"]
+    Revit --> Execute
+    Avalonia --> Execute
+    WPF --> Execute
+    Execute --> Verify["Verify Results"]
+```
+
+## 📋 DIRECTORY VERIFICATION CHECKLIST
+
+Before executing any build or NuGet command:
+
+| Step | Windows (PowerShell) | Purpose |
+|------|----------------------|---------|
+| **Check .csproj** | `Test-Path *.csproj` | Verify current directory is project root |
+| **Check .sln** | `Test-Path *.sln` | Verify solution file exists |
+| **List project files** | `Get-ChildItem -Recurse -Filter *.csproj` | Find all C# projects in solution |
+| **Navigate to project root** | `cd [project-dir]` | Move to correct directory before executing commands |
+| **Verify Rhino/Revit paths** | `Test-Path "C:\Program Files\Rhino 8\System\RhinoCommon.dll"` | Check platform SDK availability |
+
+## 📋 .NET PROJECT COMMAND GUIDELINES
+
+For C# projects, follow these strict guidelines:
+
+| Command | Correct Usage | Incorrect Usage | Notes |
+|---------|---------------|----------------|-------|
+| **dotnet build** | `dotnet build [project].csproj -c Debug` | `dotnet build` (without specifying config) | Explicit configuration prevents confusion |
+| **dotnet clean** | `dotnet clean && dotnet build` | Build without cleaning | Always clean before full rebuild |
+| **dotnet restore** | `dotnet restore [solution].sln` | Restore individual projects | Restore at solution level for consistency |
+| **NuGet install** | `dotnet add package Avalonia --version 11.0.0` | `Install-Package` (Package Manager Console) | Use .NET CLI for consistency |
+| **MSBuild** | `msbuild [project].csproj /p:Configuration=Release /p:Platform=x64` | `msbuild` (without parameters) | Explicit platform/config required for Grasshopper |
+
+## 📋 GRASSHOPPER PROJECT BUILD GUIDELINES
+
+For Grasshopper component projects:
+
+| Command | Correct Usage | Notes |
+|---------|---------------|-------|
+| **Build for Rhino 7** | `dotnet build -c Debug -f net48` | .NET Framework 4.8 target |
+| **Build for Rhino 8** | `dotnet build -c Debug -f net7.0` | .NET 7+ target |
+| **Copy to GH folder** | `xcopy /Y "bin\Debug\*.gha" "%APPDATA%\Grasshopper\Libraries\"` | Auto-deploy after build |
+| **Verify GUID uniqueness** | `findstr /S "ComponentGuid" *.cs` | Ensure no duplicate GUIDs |
+| **Check CopyLocal** | `Select-String -Path *.csproj -Pattern "Private>True" -Context 0,2` | MUST be False for Rhino DLLs |
+
+### Critical Build Configuration:
+```
+<!-- CORRECT Grasshopper .csproj settings -->
+<PropertyGroup>
+  <TargetFramework>net48</TargetFramework> <!-- or net7.0 for Rhino 8 -->
+  <OutputPath>bin\$(Configuration)\</OutputPath>
+  <PlatformTarget>x64</PlatformTarget>
+</PropertyGroup>
+
+<ItemGroup>
+  <Reference Include="RhinoCommon">
+    <HintPath>C:\Program Files\Rhino 7\System\RhinoCommon.dll</HintPath>
+    <Private>False</Private> <!-- CRITICAL: Must be False -->
+  </Reference>
+  <Reference Include="Grasshopper">
+    <HintPath>C:\Program Files\Rhino 7\Plug-ins\Grasshopper\Grasshopper.dll</HintPath>
+    <Private>False</Private> <!-- CRITICAL: Must be False -->
+  </Reference>
+</ItemGroup>
+```
+
+## 📋 REVIT PROJECT BUILD GUIDELINES
+
+For Revit add-in projects:
+
+| Command | Correct Usage | Notes |
+|---------|---------------|-------|
+| **Build for Revit 2021-2024** | `dotnet build -c Debug -f net48` | .NET Framework 4.8 |
+| **Build for Revit 2025+** | `dotnet build -c Debug -f net8.0` | .NET 8.0+ |
+| **Copy to Revit plugins** | `xcopy /Y "bin\Debug\*.dll" "%APPDATA%\Autodesk\Revit\Addins\2025\"` | Auto-deploy after build |
+| **Generate .addin manifest** | Manual or post-build event | Required for Revit to load plugin |
+| **Check CopyLocal** | `Select-String -Path *.csproj -Pattern "Private>True" -Context 0,2` | MUST be False for Revit DLLs |
+
+### Critical Build Configuration:
+```
+<!-- CORRECT Revit .csproj settings -->
+<PropertyGroup>
+  <TargetFramework>net48</TargetFramework> <!-- or net8.0 for Revit 2025+ -->
+  <OutputPath>bin\$(Configuration)\</OutputPath>
+  <PlatformTarget>x64</PlatformTarget>
+</PropertyGroup>
+
+<ItemGroup>
+  <Reference Include="RevitAPI">
+    <HintPath>C:\Program Files\Autodesk\Revit 2024\RevitAPI.dll</HintPath>
+    <Private>False</Private> <!-- CRITICAL: Must be False -->
+  </Reference>
+  <Reference Include="RevitAPIUI">
+    <HintPath>C:\Program Files\Autodesk\Revit 2024\RevitAPIUI.dll</HintPath>
+    <Private>False</Private> <!-- CRITICAL: Must be False -->
+  </Reference>
+</ItemGroup>
+```
+
+## 📋 AVALONIA PROJECT BUILD GUIDELINES
+
+For Avalonia UI projects:
+
+| Command | Correct Usage | Notes |
+|---------|---------------|-------|
+| **Build desktop app** | `dotnet build -c Release -r win-x64` | Windows x64 runtime |
+| **Run in debug** | `dotnet run --project [AppName].csproj` | Hot reload enabled |
+| **Publish self-contained** | `dotnet publish -c Release -r win-x64 --self-contained` | Includes .NET runtime |
+| **Add Avalonia package** | `dotnet add package Avalonia --version 11.0.0` | Specify version explicitly |
+| **Add MVVM Toolkit** | `dotnet add package CommunityToolkit.Mvvm --version 8.2.2` | Source generators |
+
+### Avalonia-Specific Checks:
+```
+# Verify .axaml files (NOT .xaml)
+Get-ChildItem -Recurse -Filter *.axaml
+
+# Check for proper ViewModel namespace
+Select-String -Path *.cs -Pattern "partial class.*ViewModel"
+
+# Verify source generators
+dotnet build -v detailed | Select-String "ObservablePropertyGenerator"
+```
+
+## 🔄 COMMAND CHAINING PATTERNS (PowerShell)
+
+Effective command chaining for Windows development:
+
+| Pattern | Format | Examples | Use Case |
+|---------|--------|----------|----------|
+| **Sequential** | `cmd1; cmd2` | `dotnet clean; dotnet build` | Commands run in sequence regardless of success |
+| **Conditional Success** | `cmd1 -and cmd2` | `dotnet restore -and dotnet build` | Second runs only if first succeeds |
+| **Conditional Failure** | `cmd1 -or cmd2` | `Test-Path file.txt -or New-Item file.txt` | Second runs only if first fails |
+| **Pipeline** | `cmd1 \| cmd2` | `Get-ChildItem *.cs \| Select-String "TODO"` | Pass output to next command |
+| **Background** | `Start-Job -ScriptBlock { cmd }` | `Start-Job { dotnet watch run }` | Run command in background |
+
+## 📋 NUGET PACKAGE MANAGEMENT
+
+Common NuGet operations for AEC projects:
+
+| Task | Command | Notes |
+|------|---------|-------|
+| **Add Avalonia** | `dotnet add package Avalonia` | Core UI framework |
+| **Add MVVM Toolkit** | `dotnet add package CommunityToolkit.Mvvm` | ViewModel source generators |
+| **Add Grasshopper** | `dotnet add package Grasshopper` | Official McNeel package |
+| **Add RhinoInside.Revit** | `dotnet add package RhinoInside.Revit` | Rhino ↔ Revit integration |
+| **Update package** | `dotnet add package [PackageName] --version [Version]` | Explicit version recommended |
+| **Remove package** | `dotnet remove package [PackageName]` | Clean uninstall |
+| **List packages** | `dotnet list package` | Show all installed packages |
+| **Restore packages** | `dotnet restore` | Download all dependencies |
+
+## 📋 BUILD OUTPUT VERIFICATION
+
+After build execution, verify:
+
+```
+graph TD
+    Build["Execute Build"] --> Check{"Check Result"}
+    Check -->|"Success"| Verify["Verify Output Files"]
+    Check -->|"Error"| Analyze["Analyze Build Errors"]
+    Verify -->|"Expected"| Deploy["Deploy to Target"]
+    Verify -->|"Unexpected"| Investigate["Investigate Missing Files"]
+    Analyze --> Diagnose["Diagnose Error Cause"]
+    Diagnose --> Correct["Propose Correction"]
+    Deploy --> Test["Test in Target Platform"]
+    Test --> Document["Document Success"]
+```
+
+### Verification Checklist:
+
+**For Grasshopper Components:**
+```
+# Check .gha output
+Test-Path "bin\Debug$$ComponentName].gha"
+
+# Verify no Rhino DLLs copied (CopyLocal=False)
+!(Test-Path "bin\Debug\RhinoCommon.dll")
+!(Test-Path "bin\Debug\Grasshopper.dll")
+
+# Check GUID uniqueness
+$guids = Select-String -Path "bin\Debug\*.gha" -Pattern "[0-9a-f]{8}-[0-9a-f]{4}"
+($guids | Sort-Object | Get-Unique).Count -eq $guids.Count
+```
+
+**For Revit Add-ins:**
+```
+# Check .dll output
+Test-Path "bin\Debug$$AddinName].dll"
+
+# Verify no Revit DLLs copied (CopyLocal=False)
+!(Test-Path "bin\Debug\RevitAPI.dll")
+!(Test-Path "bin\Debug\RevitAPIUI.dll")
+
+# Check .addin manifest
+Test-Path "[AddinName].addin"
+```
+
+**For Avalonia Applications:**
+```
+# Check executable output
+Test-Path "bin\Release\net8.0\win-x64$$AppName].exe"
+
+# Verify .axaml files compiled
+Select-String -Path "bin\Release\**\*.dll" -Pattern "CompiledAvaloniaXaml"
+
+# Check dependencies
+Get-ChildItem "bin\Release\net8.0\win-x64\*.dll" | Measure-Object
+```
+
+## 📋 COMMAND DOCUMENTATION TEMPLATE
+
+```
+## Command Execution: [Purpose]
+
+### Environment
+- **Project Type**: [Grasshopper / Revit / Avalonia / WPF]
+- **Target Framework**: [net48 / net7.0 / net8.0]
+- **Platform**: [x64 / AnyCPU]
+- **Configuration**: [Debug / Release]
+
+### Command
+```powershell
+[actual command or chain]
+```
+
+### Result
+```
+[command output]
+```
+
+### Verification
+- [ ] Output files generated
+- [ ] CopyLocal=False respected
+- [ ] No build warnings
+- [ ] Deployed to target location
+
+### Effect
+[Brief description of what changed in the system]
+
+### Next Steps
+[What needs to be done next]
+```
+
+## 🔍 PLATFORM-SPECIFIC PATH DETECTION
+
+```
+# Auto-detect Rhino installation
+$rhino7Path = "C:\Program Files\Rhino 7\System"
+$rhino8Path = "C:\Program Files\Rhino 8\System"
+if (Test-Path $rhino8Path) {
+    $rhinoPath = $rhino8Path
+    Write-Host "✅ Rhino 8 detected"
+} elseif (Test-Path $rhino7Path) {
+    $rhinoPath = $rhino7Path
+    Write-Host "✅ Rhino 7 detected"
+} else {
+    Write-Host "❌ Rhino not found"
+}
+
+# Auto-detect Revit installation
+$revit2024 = "C:\Program Files\Autodesk\Revit 2024"
+$revit2025 = "C:\Program Files\Autodesk\Revit 2025"
+if (Test-Path $revit2025) {
+    $revitPath = $revit2025
+    $revitVersion = "2025"
+} elseif (Test-Path $revit2024) {
+    $revitPath = $revit2024
+    $revitVersion = "2024"
+}
+Write-Host "✅ Revit $revitVersion detected"
+```
+
+## 📋 COMMAND EFFICIENCY EXAMPLES
+
+Examples of efficient command usage for C# projects:
+
+| Inefficient | Efficient | Explanation |
+|-------------|-----------|-------------|
+| `dotnet clean`<br>`dotnet restore`<br>`dotnet build` | `dotnet clean; dotnet restore; dotnet build` | Combines related operations |
+| `dotnet build MyProject.csproj`<br>`dotnet build AnotherProject.csproj` | `dotnet build MySolution.sln` | Build entire solution at once |
+| `dotnet add package Avalonia`<br>`dotnet add package CommunityToolkit.Mvvm` | `dotnet add package Avalonia; dotnet add package CommunityToolkit.Mvvm` | Chain package installations |
+| Check multiple .csproj files manually | `Get-ChildItem -Recurse -Filter *.csproj \| Select-String "Private>True"` | Automate verification across projects |
+
+## 📋 COMMON BUILD ERROR PATTERNS
+
+Recognize and fix common AEC project build errors:
+
+| Error Pattern | Likely Cause | Solution |
+|---------------|--------------|----------|
+| `System.IO.FileNotFoundException: RhinoCommon.dll` | CopyLocal=True or missing reference | Set `<Private>False</Private>` in .csproj |
+| `Could not load file or assembly 'RevitAPI'` | Revit DLL copied to bin (CopyLocal=True) | Set `<Private>False</Private>` for all Revit references |
+| `NETSDK1045: The current .NET SDK does not support 'newer version'` | SDK version mismatch | Install required .NET SDK version |
+| `XamlParseException` in Avalonia | .axaml syntax error or missing xmlns | Check .axaml file structure |
+| `ObservableProperty not found` | Missing CommunityToolkit.Mvvm package | `dotnet add package CommunityToolkit.Mvvm` |
+| `Duplicate GUID` in Grasshopper | Multiple components with same GUID | Generate unique GUID for each component |
+
+## ⚠️ ERROR HANDLING WORKFLOW
+
+```
+sequenceDiagram
+    participant User
+    participant AI
+    participant MSBuild
+    AI->>MSBuild: Execute Build Command
+    MSBuild->>AI: Return Build Result
+    alt Success
+        AI->>AI: Verify Output Files
+        AI->>AI: Check CopyLocal Compliance
+        AI->>User: Report Success + Verification
+    else Build Error
+        AI->>AI: Analyze Error Message
+        AI->>AI: Identify Pattern Match
+        AI->>User: Explain Error & Root Cause
+        AI->>User: Suggest Corrective Action
+        User->>AI: Approve Correction
+        AI->>MSBuild: Execute Corrected Build
+    else Warning
+        AI->>AI: Assess Warning Severity
+        AI->>User: Report Warning (Continue Y/N?)
+    end
+```
+
+## 📝 COMMAND EXECUTION CHECKLIST
+
+```
+✓ AEC COMMAND EXECUTION CHECKLIST
+
+- [ ] Project type correctly identified? [GH/Revit/Avalonia/WPF]
+- [ ] Target framework appropriate? [net48/net7.0/net8.0]
+- [ ] Command executed from correct directory?
+- [ ] Platform target specified? [x64/AnyCPU]
+- [ ] Configuration specified? [Debug/Release]
+- [ ] CopyLocal=False verified for platform DLLs?
+- [ ] Output path configured correctly?
+- [ ] Build output verified?
+- [ ] No platform DLLs in bin folder?
+- [ ] Command documented with results?
+- [ ] Errors properly handled (if any)?
+- [ ] Deployed to target location (if applicable)?
+
+→ If all checked: Command execution complete
+→ If any unchecked: Address missing elements
+```
+
+## 🚨 CRITICAL COMMAND WARNINGS
+
+Avoid these common mistakes in AEC projects:
+
+```
+graph TD
+    Warning["Command Warnings"] --> W1["CopyLocal=True on Rhino/Revit DLLs"]
+    Warning --> W2["Wrong .NET Framework Version"]
+    Warning --> W3["Missing Platform Target (x64)"]
+    Warning --> W4["Building Without Cleaning"]
+    Warning --> W5["Incorrect Output Path"]
+    
+    W1 --> S1["❌ NEVER copy Rhino/Revit DLLs<br>Set Private=False"]
+    W2 --> S2["Match framework to platform:<br>Rhino7=net48, Rhino8=net7+<br>Revit2024=net48, Revit2025+=net8"]
+    W3 --> S3["Always specify x64<br>for GH/Revit projects"]
+    W4 --> S4["Run 'dotnet clean' before<br>full rebuild"]
+    W5 --> S5["Verify GH components go to<br>%APPDATA%\Grasshopper\Libraries"]
+    
+    style W1 fill:#ff6b6b
+    style W2 fill:#ff6b6b
+    style S1 fill:#ff6b6b,color:#fff
+    style S2 fill:#ff6b6b,color:#fff
+```
+
+## 🎯 POST-BUILD DEPLOYMENT AUTOMATION
+
+Automate deployment with PowerShell post-build scripts:
+
+```
+# Add to .csproj as <PostBuildEvent>
+
+# For Grasshopper components:
+xcopy /Y "$(TargetPath)" "%APPDATA%\Grasshopper\Libraries\"
+
+# For Revit add-ins:
+xcopy /Y "$(TargetPath)" "%APPDATA%\Autodesk\Revit\Addins\2025\"
+xcopy /Y "$(ProjectDir)$(TargetName).addin" "%APPDATA%\Autodesk\Revit\Addins\2025\"
+
+# Verify no platform DLLs copied:
+IF EXIST "$(TargetDir)RhinoCommon.dll" (
+    echo ERROR: RhinoCommon.dll should not be copied! Set CopyLocal=False
+    exit 1
+)
+```
+
+---
+
+**END OF AEC COMMAND EXECUTION SYSTEM**

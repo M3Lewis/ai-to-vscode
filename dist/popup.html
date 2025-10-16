@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>AI to VSCode Bridge - 设置</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 450px;
+      max-height: 600px;
+      overflow-y: auto;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #1e1e1e;
+      color: #cccccc;
+    }
+
+    h2 {
+      margin-bottom: 16px;
+      font-size: 18px;
+      color: #ffffff;
+      border-bottom: 1px solid #3e3e3e;
+      padding-bottom: 8px;
+    }
+
+    .setting-group {
+      margin-bottom: 20px;
+    }
+
+    .setting-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 13px;
+      color: #cccccc;
+      font-weight: 500;
+    }
+
+    input[type="number"],
+    input[type="text"] {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #3e3e3e;
+      border-radius: 4px;
+      background: #2d2d2d;
+      color: #ffffff;
+      font-size: 13px;
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    input[type="number"]:focus,
+    input[type="text"]:focus {
+      outline: none;
+      border-color: #007acc;
+    }
+
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .checkbox-group input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+    }
+
+    .checkbox-group label {
+      margin: 0;
+      cursor: pointer;
+    }
+
+    .url-list {
+      max-height: 180px;
+      overflow-y: auto;
+      border: 1px solid #3e3e3e;
+      border-radius: 4px;
+      background: #2d2d2d;
+      padding: 8px;
+      margin-bottom: 8px;
+    }
+
+    .url-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px;
+      background: #1e1e1e;
+      border-radius: 4px;
+      margin-bottom: 4px;
+    }
+
+    .url-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .url-item span {
+      flex: 1;
+      font-size: 13px;
+      color: #cccccc;
+    }
+
+    .url-item button {
+      background: #c94031;
+      color: white;
+      border: none;
+      padding: 4px 10px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 11px;
+    }
+
+    .url-item button:hover {
+      background: #a03428;
+    }
+
+    .add-url-form {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .add-url-form input {
+      flex: 1;
+    }
+
+    .add-url-form button {
+      padding: 8px 12px;
+      background: #007acc;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .add-url-form button:hover {
+      background: #005a9e;
+    }
+
+    .selector-form {
+      margin-bottom: 12px;
+    }
+
+    .selector-form input {
+      margin-bottom: 6px;
+    }
+
+    .selector-form button {
+      width: 100%;
+      padding: 8px 12px;
+      background: #007acc;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .selector-form button:hover {
+      background: #005a9e;
+    }
+
+    #smart-find-btn {
+      background: #6c5ce7;
+      margin-bottom: 8px;
+    }
+
+    #smart-find-btn:hover {
+      background: #5f4dd1;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    button.primary {
+      flex: 1;
+      padding: 10px 16px;
+      background: #007acc;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 14px;
+    }
+
+    button.primary:hover {
+      background: #005a9e;
+    }
+
+    button.secondary {
+      flex: 1;
+      padding: 10px 16px;
+      background: #3e3e3e;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 14px;
+    }
+
+    button.secondary:hover {
+      background: #505050;
+    }
+
+    button.tertiary {
+      flex: 1;
+      padding: 10px 16px;
+      background: #2d2d2d;
+      color: white;
+      border: 1px solid #3e3e3e;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 14px;
+    }
+
+    button.tertiary:hover {
+      background: #3e3e3e;
+      border-color: #505050;
+    }
+
+    #status {
+      margin-top: 12px;
+      padding: 10px;
+      border-radius: 4px;
+      font-size: 13px;
+      text-align: center;
+      display: none;
+    }
+
+    #status.success {
+      display: block;
+      background: #4ec9b0;
+      color: #1e1e1e;
+      font-weight: 500;
+    }
+
+    #status.error {
+      display: block;
+      background: #f48771;
+      color: #1e1e1e;
+      font-weight: 500;
+    }
+
+    .hint {
+      font-size: 11px;
+      color: #888888;
+      margin-top: 4px;
+      line-height: 1.4;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 16px;
+      color: #666666;
+      font-size: 12px;
+    }
+
+    details {
+      margin-top: 8px;
+    }
+
+    summary {
+      cursor: pointer;
+      color: #007acc;
+      font-size: 12px;
+      user-select: none;
+    }
+
+    summary:hover {
+      color: #4fc3f7;
+    }
+
+    details[open] summary {
+      margin-bottom: 8px;
+    }
+
+    details div {
+      padding: 8px;
+      font-size: 11px;
+      line-height: 1.6;
+      color: #888;
+      background: #2d2d2d;
+      border-radius: 4px;
+    }
+
+    details ol {
+      margin-left: 20px;
+    }
+
+    details li {
+      margin-bottom: 4px;
+    }
+
+    details p {
+      margin-bottom: 4px;
+    }
+
+    /* 智能查找弹窗样式 */
+    #smart-find-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-content {
+      background: #1e1e1e;
+      border-radius: 8px;
+      max-width: 600px;
+      width: 100%;
+      max-height: 80vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid #3e3e3e;
+    }
+
+    .modal-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid #3e3e3e;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-header h3 {
+      margin: 0;
+      font-size: 16px;
+      color: #fff;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: #888;
+      font-size: 24px;
+      cursor: pointer;
+      padding: 0;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+    }
+
+    .modal-close:hover {
+      background: #3e3e3e;
+      color: #fff;
+    }
+
+    .modal-body {
+      padding: 16px 20px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .button-candidate {
+      background: #2d2d2d;
+      border: 1px solid #3e3e3e;
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .button-candidate:hover {
+      border-color: #6c5ce7;
+      background: #3e3e3e;
+    }
+
+    .button-candidate.selected {
+      border-color: #6c5ce7;
+      background: #3e3e3e;
+    }
+
+    .button-info {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .button-label {
+      font-size: 14px;
+      color: #fff;
+      font-weight: 500;
+    }
+
+    .button-selector {
+      font-size: 12px;
+      color: #6c5ce7;
+      font-family: 'Consolas', 'Monaco', monospace;
+      word-break: break-all;
+    }
+
+    .button-details {
+      font-size: 11px;
+      color: #888;
+    }
+
+    .modal-footer {
+      padding: 16px 20px;
+      border-top: 1px solid #3e3e3e;
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .modal-footer button {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .modal-footer .btn-cancel {
+      background: #3e3e3e;
+      color: #fff;
+    }
+
+    .modal-footer .btn-cancel:hover {
+      background: #505050;
+    }
+
+    .modal-footer .btn-confirm {
+      background: #6c5ce7;
+      color: #fff;
+    }
+
+    .modal-footer .btn-confirm:hover {
+      background: #5f4dd1;
+    }
+
+    .modal-footer .btn-confirm:disabled {
+      background: #3e3e3e;
+      color: #666;
+      cursor: not-allowed;
+    }
+
+    .empty-result {
+      text-align: center;
+      padding: 40px 20px;
+      color: #888;
+    }
+
+    .empty-result-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    .scanning-indicator {
+      text-align: center;
+      padding: 40px 20px;
+    }
+
+    .spinner {
+      border: 3px solid #3e3e3e;
+      border-top: 3px solid #6c5ce7;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #1e1e1e;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #3e3e3e;
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #505050;
+    }
+  </style>
+</head>
+
+<body>
+  <h2>⚙️ AI to VSCode Bridge</h2>
+
+  <div class="setting-group">
+    <label for="port-input">WebSocket端口：</label>
+    <input type="number" id="port-input" value="8765" min="1024" max="65535">
+    <div class="hint">修改后需要重启VS Code扩展，默认：8765</div>
+  </div>
+
+  <div class="setting-group">
+    <label>显示选项：</label>
+    <div class="checkbox-group">
+      <input type="checkbox" id="show-on-all-sites">
+      <label for="show-on-all-sites">在所有网站显示悬浮窗</label>
+    </div>
+    <div class="hint">启用后悬浮窗将在所有网站显示，否则只在下方列表中的网站显示</div>
+  </div>
+
+  <div class="setting-group">
+    <label>启用的网站：</label>
+    <div class="add-url-form">
+      <input 
+        type="text" 
+        id="new-url-input" 
+        placeholder="输入网站域名（如：perplexity.ai）"
+      >
+      <button id="add-url-btn">添加</button>
+    </div>
+    <div class="url-list" id="url-list">
+      <div class="empty-state">暂无网站</div>
+    </div>
+    <div class="hint">支持通配符，如：*.openai.com 匹配所有OpenAI子域名</div>
+  </div>
+
+  <div class="setting-group">
+    <label>网站选择器配置（高级）：</label>
+    <div class="hint" style="margin-bottom: 8px;">
+      为特定网站自定义COPY按钮的CSS选择器，用于适配不同AI对话界面
+    </div>
+    
+    <div class="selector-form">
+      <input 
+        type="text" 
+        id="config-hostname" 
+        placeholder="网站域名（如：perplexity.ai）"
+      >
+      <input 
+        type="text" 
+        id="config-selector" 
+        placeholder='COPY按钮选择器（如：button[aria-label="Copy"]）'
+      >
+      <input 
+        type="text" 
+        id="config-container" 
+        placeholder="回答容器选择器（可选，用于定位最新回答）"
+      >
+      
+      <button id="smart-find-btn">🔍 智能查找当前页面的COPY按钮</button>
+      <button id="add-config-btn">添加配置</button>
+    </div>
+    
+    <div id="smart-find-modal" style="display: none;"></div>
+    
+    <div class="url-list" id="config-list">
+      <div class="empty-state">暂无自定义配置</div>
+    </div>
+    
+    <details>
+      <summary>💡 如何找到CSS选择器？</summary>
+      <div>
+        <p style="margin-bottom: 8px;"><strong>方式1: 使用智能查找（推荐）</strong></p>
+        <ol style="margin-left: 20px; margin-bottom: 12px;">
+          <li>在AI网站打开对话并获得回答</li>
+          <li>点击扩展图标打开设置</li>
+          <li>点击"🔍 智能查找"按钮</li>
+          <li>从列表中选择合适的按钮</li>
+          <li>自动填充到配置中</li>
+        </ol>
+        
+        <p style="margin-bottom: 8px;"><strong>方式2: 手动查找</strong></p>
+        <ol style="margin-left: 20px;">
+          <li>在AI网站按 <strong>F12</strong> 打开开发者工具</li>
+          <li>右键点击COPY按钮 → 选择"<strong>检查</strong>"</li>
+          <li>在Elements标签，右键高亮的元素</li>
+          <li>选择 Copy → <strong>Copy selector</strong></li>
+          <li>粘贴到"COPY按钮选择器"输入框</li>
+          <li>点击"添加配置"并保存设置</li>
+        </ol>
+        <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #3e3e3e;">
+          <strong>常见选择器示例：</strong><br>
+          • button[aria-label="Copy"]<br>
+          • button.copy-button<br>
+          • [data-testid="copy-btn"]
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <div class="button-group">
+    <button class="primary" id="save-settings">💾 保存设置</button>
+    <button class="secondary" id="reset-defaults">🔄 恢复默认</button>
+  </div>
+
+  <div class="button-group">
+    <button class="tertiary" id="export-config">📤 导出配置</button>
+    <button class="tertiary" id="import-config">📥 导入配置</button>
+  </div>
+
+  <input type="file" id="import-file-input" accept=".json">
+
+  <div id="status"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
