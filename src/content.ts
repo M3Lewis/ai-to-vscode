@@ -181,57 +181,92 @@ private createPanel(): void {
     }
   }
 
-  private async handleSendClick(): Promise<void> {
+private async handleSendClick(): Promise<void> {
+  const overallStart = performance.now();
+  console.group('🚀 [复制并保存] 完整流程');
+  console.log('⏱️ 开始时间:', new Date().toLocaleTimeString());
+  console.log('💾 初始内存:', this.getMemoryUsage());
+
   try {
-    this.debugLog('🚀 开始发送流程...');
-    
-    // 特殊处理：AI Studio 需要先打开菜单
+    // AI Studio 特殊处理
     if (window.location.hostname.includes('aistudio.google.com')) {
       await this.handleAIStudioCopy();
+      console.groupEnd();
       return;
     }
-    
+
+    // 步骤1：查找按钮
+    console.log('\n📍 步骤1: 查找复制按钮');
     const copyButton = DOMHelper.findLatestCopyButton();
     
     if (!copyButton) {
       console.error('❌ 未找到COPY按钮');
-      this.showError('未找到COPY按钮，请在设置中配置选择器');
+      this.showError('未找到COPY按钮');
+      console.groupEnd();
       return;
     }
 
-    this.debugLog('✅ 找到按钮，准备点击');
+    // 步骤2：点击按钮
+    console.log('\n📍 步骤2: 点击复制按钮');
+    console.time('点击复制');
     copyButton.click();
-    
+    console.timeEnd('点击复制');
+
+    // 步骤3：等待复制完成
+    console.log('\n📍 步骤3: 等待复制完成 (300ms)');
     await this.delay(300);
-    
+
+    // 步骤4：读取剪贴板
+    console.log('\n📍 步骤4: 读取剪贴板');
     const content = await DOMHelper.getClipboardContent();
     
     if (!content || content.trim().length === 0) {
+      console.error('❌ 剪贴板内容为空');
       this.showError('剪贴板内容为空');
+      console.groupEnd();
       return;
     }
 
-    this.debugLog('✅ 读取到内容，长度:', content.length);
-    
-    // 内容长度限制检查
-    if (content.length > 50000) { // 50KB限制
-      this.showError('对话内容过长，无法直接复制，请分批操作！');
-      return;
-    }
-    
+    // 步骤5：生成文件名
+    console.log('\n📍 步骤5: 生成文件名');
+    console.time('生成文件名');
     const filename = this.generateSmartFilename(content);
-    this.debugLog('📝 生成文件名:', filename);
-    
+    console.timeEnd('生成文件名');
+    console.log('📝 文件名:', filename);
+
+    // 步骤6：发送到VS Code
+    console.log('\n📍 步骤6: 发送到VS Code');
     this.showFilenamePreview(filename);
     this.sendToVSCode(content, filename);
-    await this.updateDailyCounter();
     
+    // 步骤7：更新计数器
+    console.log('\n📍 步骤7: 更新计数器');
+    await this.updateDailyCounter();
+
+    const overallEnd = performance.now();
+    console.log('\n✅ 流程完成');
+    console.log('⏱️ 总耗时:', (overallEnd - overallStart).toFixed(2), 'ms');
+    console.log('💾 结束内存:', this.getMemoryUsage());
+    console.groupEnd();
+
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : '未知错误';
-    console.error('发送失败:', error);
+    console.error('❌ 流程失败:', error);
+    console.log('💾 错误时内存:', this.getMemoryUsage());
     this.showError(`操作失败：${errorMessage}`);
+    console.groupEnd();
   }
 }
+
+private getMemoryUsage(): string {
+  if ('memory' in performance) {
+    const memory = (performance as any).memory;
+    const used = (memory.usedJSHeapSize / 1048576).toFixed(2);
+    return `${used} MB`;
+  }
+  return '不可用';
+}
+
 
 // 新增：专门处理 AI Studio 的复制
 private async handleAIStudioCopy(): Promise<void> {
