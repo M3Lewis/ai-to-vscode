@@ -794,36 +794,68 @@ private async smartFindCopyButtons(): Promise<void> {
 
   // 提示词管理相关方法
   private renderPromptList(): void {
-    if (!this.promptList) return;
+  if (!this.promptList) return;
 
-    const prompts = this.currentSettings.promptFiles || [];
+  const prompts = this.currentSettings.promptFiles || [];
 
-    if (prompts.length === 0) {
-      this.promptList.innerHTML = '<div class="empty-state">暂无提示词配置</div>';
-      return;
-    }
-
-    this.promptList.innerHTML = prompts
-      .map((prompt, index) => `
-        <div class="url-item">
-          <div style="flex: 1;">
-            <div style="font-weight: 500; color: #fff;">${this.escapeHtml(prompt.name)}</div>
-            <div style="font-size: 11px; color: #888; margin-top: 2px;">
-              内容长度: ${prompt.path.length} 字符
-            </div>
-          </div>
-          <button data-index="${index}">删除</button>
-        </div>
-      `)
-      .join('');
-
-    this.promptList.querySelectorAll('button').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const index = parseInt((e.target as HTMLElement).getAttribute('data-index') || '0');
-        this.removePrompt(index);
-      });
-    });
+  if (prompts.length === 0) {
+    this.promptList.innerHTML = '<div class="empty-state">暂无提示词配置</div>';
+    return;
   }
+
+  this.promptList.innerHTML = prompts
+    .map((prompt, index) => `
+      <div class="url-item">
+        <div style="flex: 1;">
+          <div style="font-weight: 500; color: #fff;">📝 ${this.escapeHtml(prompt.name)}</div>
+          <div style="font-size: 11px; color: #888; margin-top: 2px;">
+            内容长度: ${prompt.path.length} 字符
+          </div>
+        </div>
+        <div style="display: flex; gap: 6px;">
+          <button 
+            class="action-btn rename-btn" 
+            data-index="${index}"
+            style="
+              padding: 4px 10px;
+              background: #4a4a4a;
+              color: white;
+              border: none;
+              border-radius: 3px;
+              cursor: pointer;
+              font-size: 12px;
+            "
+          >
+            ✏️ 重命名
+          </button>
+          <button 
+            class="danger" 
+            data-index="${index}"
+          >
+            删除
+          </button>
+        </div>
+      </div>
+    `)
+    .join('');
+
+  // 绑定删除按钮事件
+  this.promptList.querySelectorAll('.danger').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const index = parseInt((e.target as HTMLElement).getAttribute('data-index') || '0');
+      this.removePrompt(index);
+    });
+  });
+
+  // 绑定重命名按钮事件
+  this.promptList.querySelectorAll('.rename-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const index = parseInt((e.target as HTMLElement).getAttribute('data-index') || '0');
+      this.renamePrompt(index);
+    });
+  });
+}
+
 
 private currentFileName: string = '';
 
@@ -911,6 +943,94 @@ private addPrompt(): void {
   
   this.showStatus(`✅ 已添加提示词：${newPrompt.name}`, 'success');
 }
+private renamePrompt(index: number): void {
+  if (!this.currentSettings.promptFiles) return;
+
+  const prompt = this.currentSettings.promptFiles[index];
+  if (!prompt) return;
+
+  // 找到对应的 DOM 元素
+  const items = this.promptList?.querySelectorAll('.url-item');
+  if (!items || !items[index]) return;
+
+  const item = items[index];
+  const nameElement = item.querySelector('div > div:first-child') as HTMLElement;
+  if (!nameElement) return;
+
+  // 保存原始名称
+  const originalName = prompt.name;
+  const originalHTML = nameElement.innerHTML;
+
+  // 创建输入框
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = originalName;
+  input.style.cssText = `
+    width: 100%;
+    padding: 4px 8px;
+    background: #2d2d2d;
+    border: 1px solid #007bff;
+    border-radius: 3px;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 500;
+  `;
+
+  // 替换为输入框
+  nameElement.innerHTML = '';
+  nameElement.appendChild(input);
+  input.focus();
+  input.select();
+
+  // 保存函数
+  const save = () => {
+    const newName = input.value.trim();
+
+    if (!newName) {
+      nameElement.innerHTML = originalHTML;
+      this.showStatus('❌ 名称不能为空', 'error');
+      return;
+    }
+
+    // 检查重名
+    const exists = this.currentSettings.promptFiles!.some(
+      (p, i) => i !== index && p.name === newName
+    );
+
+    if (exists) {
+      nameElement.innerHTML = originalHTML;
+      this.showStatus(`❌ 提示词 "${newName}" 已存在`, 'error');
+      return;
+    }
+
+    // 更新名称
+    prompt.name = newName;
+    nameElement.innerHTML = `📝 ${this.escapeHtml(newName)}`;
+    
+    this.saveDraft();
+    this.showStatus(`✅ 已重命名为：${newName}`, 'success');
+  };
+
+  // 取消函数
+  const cancel = () => {
+    nameElement.innerHTML = originalHTML;
+  };
+
+  // 回车保存
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      save();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cancel();
+    }
+  });
+
+  // 失焦保存
+  input.addEventListener('blur', save);
+}
+
 
 
 

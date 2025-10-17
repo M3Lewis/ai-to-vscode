@@ -341,3 +341,23 @@ input[type="file"] {
     flex-direction: column;
   }
 }
+
+
+.action-btn {
+  padding: 4px 10px;
+  background: #4a4a4a;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.2s;
+}
+
+.action-btn:hover {
+  background: #5a5a5a;
+}
+
+.rename-btn:hover {
+  background: #007bff;
+}
