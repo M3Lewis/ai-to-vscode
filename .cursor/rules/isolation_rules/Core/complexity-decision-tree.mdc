@@ -1,0 +1,306 @@
+---
+description: Complexity decision tree for AEC computational design projects (C#, Avalonia, Grasshopper, Revit)
+globs: complexity-decision-tree.mdc
+alwaysApply: false
+---
+
+# TASK COMPLEXITY DETERMINATION (AEC EDITION)
+
+> **TL;DR:** This document helps determine the appropriate complexity level (1-4) for AEC development tasks involving Grasshopper components, Avalonia/WPF applications, Revit add-ins, and Rhino.Inside.Revit workflows. Use the decision tree and AEC-specific indicators to select the right process level.
+
+## 🌳 COMPLEXITY DECISION TREE
+
+```
+graph TD
+    Start["New Task"] --> Q1{"Bug fix or<br>error correction?"}
+    Q1 -->|Yes| Q1a{"Affects single<br>component/class?"}
+    Q1a -->|Yes| L1["Level 1:<br>Quick Bug Fix"]
+    Q1a -->|No| Q1b{"Affects multiple<br>components/assemblies?"}
+    Q1b -->|Yes| L2["Level 2:<br>Simple Enhancement"]
+    Q1b -->|No| Q1c{"Affects API integration<br>or architecture?"}
+    Q1c -->|Yes| L3["Level 3:<br>Intermediate Feature"]
+    Q1c -->|No| L2
+    
+    Q1 -->|No| Q2{"Adding new parameter<br>or UI element?"}
+    Q2 -->|Yes| Q2a{"Self-contained<br>in single class?"}
+    Q2a -->|Yes| L2
+    Q2a -->|No| Q2b{"Requires RhinoCommon<br>or Revit API calls?"}
+    Q2b -->|Yes| L3
+    Q2b -->|No| L2
+    
+    Q2 -->|No| Q3{"New GH component<br>or complete feature?"}
+    Q3 -->|Yes| Q3a{"Cross-platform<br>or multi-API integration?"}
+    Q3a -->|Yes| L4["Level 4:<br>Complex System"]
+    Q3a -->|No| L3
+    
+    Q3 -->|No| Q4{"System-wide change or<br>RIR bi-directional workflow?"}
+    Q4 -->|Yes| L4
+    Q4 -->|No| L3
+    
+    L1 --> LoadL1["Load Level 1 Map"]
+    L2 --> LoadL2["Load Level 2 Map"]
+    L3 --> LoadL3["Load Level 3 Map"]
+    L4 --> LoadL4["Load Level 4 Map"]
+```
+
+## 📊 COMPLEXITY LEVEL INDICATORS (AEC EDITION)
+
+Use these AEC-specific indicators to help determine task complexity:
+
+### Level 1: Quick Bug Fix
+- **Keywords**: "fix", "broken", "crash", "error", "null reference", "parameter issue"
+- **Scope**: Single C# class, single GH parameter, isolated XAML element
+- **Duration**: Minutes to hours
+- **Risk**: Low, isolated changes
+- **AEC-Specific Examples**:
+  - Fix GH component parameter validation error
+  - Correct null reference in geometry processing
+  - Fix XAML binding error in Avalonia view
+  - Resolve CopyLocal=True assembly reference issue
+  - Fix tolerance comparison in RhinoCommon
+  - Correct unit conversion bug
+
+### Level 2: Simple Enhancement
+- **Keywords**: "add parameter", "improve validation", "update UI", "enhance"
+- **Scope**: Single GH component, single ViewModel, one Avalonia view
+- **Duration**: Hours to 1-2 days
+- **Risk**: Moderate, contained to specific class/component
+- **AEC-Specific Examples**:
+  - Add new input parameter to GH component
+  - Add [ObservableProperty] to existing ViewModel
+  - Update Avalonia .axaml styling
+  - Add simple geometry validation (IsValid check)
+  - Enhance error messaging with GH_RuntimeMessage
+  - Add new RelayCommand to ViewModel
+  - Update Revit selection filter
+
+### Level 3: Intermediate Feature
+- **Keywords**: "implement", "create component", "develop algorithm", "build UI"
+- **Scope**: Multiple classes, new GH component, multi-view UI
+- **Duration**: Days to 1-2 weeks
+- **Risk**: Significant, affects multiple files and APIs
+- **AEC-Specific Examples**:
+  - Create new Grasshopper component from scratch
+  - Implement geometry transformation algorithm (RhinoCommon)
+  - Build Avalonia multi-view UI with navigation
+  - Develop Revit family creation workflow
+  - Implement ExternalEvent pattern for Revit UI
+  - Create geometry conversion pipeline (Rhino ↔ Revit)
+  - Build WPF docking panel for Revit add-in
+  - Implement Transaction-based Revit database operations
+
+### Level 4: Complex System
+- **Keywords**: "architecture", "framework", "integration", "bi-directional", "plugin system"
+- **Scope**: Multiple assemblies, cross-platform integration, entire plugin architecture
+- **Duration**: Weeks to months
+- **Risk**: High, architectural and API compatibility implications
+- **AEC-Specific Examples**:
+  - Build complete Rhino.Inside.Revit bi-directional workflow
+  - Create extensible Grasshopper plugin framework
+  - Implement cross-platform Avalonia application (.NET 8.0)
+  - Develop multi-threaded geometry batch processing system
+  - Build Revit add-in with service-based architecture
+  - Create automated Revit-to-Rhino synchronization pipeline
+  - Implement plugin manager with dynamic assembly loading
+  - Develop computational design optimization framework
+
+## 🔍 AEC-SPECIFIC COMPLEXITY ASSESSMENT QUESTIONS
+
+Answer these questions to determine complexity for AEC projects:
+
+### 1. **Scope Impact**
+   - Does it affect a single C# class or multiple assemblies?
+   - Does it cross platform boundaries (Rhino ↔ Revit)?
+   - How many .csproj files will be modified?
+   - Does it require changes to assembly references?
+
+### 2. **API Complexity**
+   - Does it use RhinoCommon API? (Basic geometry vs complex operations)
+   - Does it use Revit API? (Read-only vs Transaction-based)
+   - Does it require Rhino.Inside.Revit geometry conversion?
+   - Are there threading constraints (Revit UI thread, GH document thread)?
+
+### 3. **Platform Compatibility**
+   - .NET Framework 4.8 only, or .NET Core 7.0/8.0?
+   - Rhino 7 or Rhino 8 compatibility?
+   - Revit 2021-2024 (.NET 4.8) or Revit 2025+ (.NET 8.0)?
+   - Windows-only (WPF) or cross-platform (Avalonia)?
+
+### 4. **Design Decisions**
+   - Are complex geometry algorithms required?
+   - Is UI/UX design needed (Avalonia views, layout)?
+   - Are there architectural patterns to decide (MVVM, service-based)?
+   - Does it require creative phase for algorithm design?
+
+### 5. **Risk Assessment**
+   - What happens if geometry processing fails?
+   - Are there CopyLocal=True risks (assembly conflicts)?
+   - Will it affect Grasshopper document stability?
+   - Are there Revit Transaction rollback scenarios?
+
+### 6. **Implementation Effort**
+   - How many RhinoCommon/Revit API methods involved?
+   - Does it require specialized geometry knowledge?
+   - Is extensive testing needed (multiple Rhino/Revit versions)?
+   - Does it need post-build deployment automation?
+
+## 📊 AEC KEYWORD ANALYSIS TABLE
+
+| Keyword | Likely Level | AEC Context |
+|---------|--------------|-------------|
+| "Fix parameter" | Level 1 | GH parameter validation |
+| "Null reference" | Level 1 | Geometry null check |
+| "CopyLocal error" | Level 1 | Assembly reference fix |
+| "Add parameter" | Level 2 | New GH input/output |
+| "Update ViewModel" | Level 2 | MVVM property addition |
+| "Enhance validation" | Level 2 | Geometry IsValid check |
+| "Create component" | Level 3 | New GH_Component class |
+| "Implement algorithm" | Level 3 | RhinoCommon geometry logic |
+| "Build UI" | Level 3 | Avalonia multi-view |
+| "Revit Transaction" | Level 3 | Database modification |
+| "RIR integration" | Level 4 | Rhino.Inside.Revit workflow |
+| "Plugin framework" | Level 4 | Extensible architecture |
+| "Cross-platform" | Level 4 | .NET Core + Avalonia |
+| "Bi-directional sync" | Level 4 | Rhino ↔ Revit automation |
+
+## 🔍 PLATFORM-SPECIFIC COMPLEXITY MODIFIERS
+
+Consider these factors that may elevate complexity:
+
+| Factor | Complexity Increase | Rationale |
+|--------|---------------------|-----------|
+| **Rhino.Inside.Revit** | +1 Level | Geometry conversion complexity |
+| **Multi-threading** | +1 Level | Revit ExternalEvent, GH thread safety |
+| **.NET Framework 4.8 → .NET 8.0 migration** | +1 Level | Breaking changes, API updates |
+| **WPF → Avalonia migration** | +1 Level | XAML syntax differences |
+| **Multiple Revit versions** | +1 Level | API compatibility testing |
+| **Custom geometry algorithms** | +1 Level | Requires CREATIVE phase |
+| **Transaction coordination** | +0.5 Level | Revit-specific pattern |
+
+## 🔄 COMPLEXITY ESCALATION
+
+If during a task you discover it's more complex than initially determined:
+
+```
+⚠️ TASK ESCALATION NEEDED
+
+Current Level: Level [X]
+Recommended Level: Level [Y]
+Reason: [Brief explanation]
+
+AEC-Specific Factors:
+- [ ] Requires RhinoCommon/Revit API calls not anticipated
+- [ ] Cross-platform compatibility issues discovered
+- [ ] Assembly reference conflicts (CopyLocal issues)
+- [ ] Threading constraints (Revit UI thread, GH document thread)
+- [ ] Geometry conversion complexity (Rhino ↔ Revit)
+- [ ] Architecture changes needed
+
+Would you like me to escalate this task to Level [Y]?
+```
+
+If approved, switch to the appropriate higher-level process map.
+
+## 🎯 PROCESS SELECTION
+
+After determining complexity, load the appropriate process map:
+
+| Level | Description | Process Map | AEC Focus |
+|-------|-------------|-------------|-----------|
+| 1 | Quick Bug Fix | [Level 1 Map](mdc:.cursor/rules/visual-maps/level1-map.mdc) | Single class fix, no API changes |
+| 2 | Simple Enhancement | [Level 2 Map](mdc:.cursor/rules/visual-maps/level2-map.mdc) | Add parameter, update ViewModel |
+| 3 | Intermediate Feature | [Level 3 Map](mdc:.cursor/rules/visual-maps/level3-map.mdc) | New component, algorithm, UI |
+| 4 | Complex System | [Level 4 Map](mdc:.cursor/rules/visual-maps/level4-map.mdc) | Architecture, RIR, framework |
+
+## 📝 AEC COMPLEXITY DETERMINATION TEMPLATE
+
+Use this template to document complexity determination:
+
+```
+## COMPLEXITY DETERMINATION
+
+Task: [Task description]
+
+### AEC Project Context
+- Project Type: [Grasshopper Plugin / Avalonia App / Revit Add-in / RIR Integration]
+- Target Framework: [.NET Framework 4.8 / .NET 7.0 / .NET 8.0]
+- Platform: [Rhino 7/8 / Revit 2021-2026 / Standalone]
+- UI Framework: [Avalonia / WPF / None]
+
+### Assessment
+- Scope: [Single class / Multiple classes / Multiple assemblies / System-wide]
+- Design decisions: [Simple / Moderate / Complex / Requires CREATIVE phase]
+- Risk: [Low / Moderate / High / Critical]
+- Implementation effort: [Low / Moderate / High / Very High]
+
+### API Complexity
+- RhinoCommon API calls: [None / Basic geometry / Complex operations]
+- Revit API calls: [None / Read-only / Transaction-based / ExternalEvent]
+- Rhino.Inside.Revit: [No / Rhino→Revit / Revit→Rhino / Bi-directional]
+
+### Platform Compatibility
+- .NET version: [4.8 / 7.0 / 8.0]
+- Cross-platform: [Yes / No]
+- Multiple Revit versions: [Yes / No]
+
+### Keywords Identified
+[List relevant AEC keywords]
+
+### Complexity Modifiers
+- [ ] Rhino.Inside.Revit (+1)
+- [ ] Multi-threading (+1)
+- [ ] .NET migration (+1)
+- [ ] WPF→Avalonia (+1)
+- [ ] Multiple Revit versions (+1)
+- [ ] Custom algorithms (+1)
+
+### Final Determination
+**Level [1/2/3/4]** - [Quick Bug Fix / Simple Enhancement / Intermediate Feature / Complex System]
+
+**Adjusted Level (with modifiers)**: Level [X]
+
+Loading process map: [Level X Map]
+
+### Critical Checks Required
+- [ ] Verify CopyLocal=False for Rhino/Revit assemblies
+- [ ] Check .NET framework compatibility
+- [ ] Validate threading model (Revit ExternalEvent if needed)
+- [ ] Confirm geometry tolerance/unit handling
+- [ ] Plan Transaction boundaries (Revit only)
+```
+
+## 🚨 COMMON AEC COMPLEXITY PITFALLS
+
+Be aware of these factors that often lead to underestimated complexity:
+
+| Pitfall | Initial Assessment | Actual Complexity | Why |
+|---------|-------------------|-------------------|-----|
+| "Simple geometry operation" | Level 2 | Level 3 | RhinoCommon API edge cases |
+| "Add Revit UI button" | Level 2 | Level 3 | Requires ExternalEvent pattern |
+| "Port WPF to Avalonia" | Level 3 | Level 4 | XAML syntax differences |
+| "Rhino→Revit conversion" | Level 2 | Level 3-4 | Unit/tolerance handling |
+| "Multi-version support" | Level 3 | Level 4 | API breaking changes |
+| "Threading fix" | Level 1 | Level 2-3 | Revit UI thread constraints |
+
+## 📋 QUICK DECISION FLOWCHART
+
+```
+Is it a bug fix?
+├─ Yes, single file → Level 1
+└─ Yes, multiple files → Level 2
+
+Is it adding a parameter/property?
+├─ Yes, no API calls → Level 2
+└─ Yes, with RhinoCommon/Revit → Level 3
+
+Is it a new component/feature?
+├─ Yes, single platform → Level 3
+└─ Yes, cross-platform/RIR → Level 4
+
+Is it architectural/framework?
+└─ Always Level 4
+```
+
+---
+
+**END OF AEC COMPLEXITY DETERMINATION SYSTEM**
