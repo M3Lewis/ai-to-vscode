@@ -73,12 +73,12 @@ class PopupManager {
   private addConfigButton: HTMLButtonElement | null = null;
   
   // 提示词相关元素
-  private promptNameInput: HTMLInputElement | null = null;
   private promptPathInput: HTMLInputElement | null = null;
   private selectFileButton: HTMLButtonElement | null = null;
   private promptFileInput: HTMLInputElement | null = null;
   private addPromptButton: HTMLButtonElement | null = null;
   private promptList: HTMLElement | null = null;
+  private fileNameDisplay: HTMLElement | null = null;
   private currentFileContent: string = '';
   
   private currentSettings: Settings = {
@@ -119,12 +119,16 @@ class PopupManager {
     this.addConfigButton = document.getElementById('add-config-btn') as HTMLButtonElement;
     
     // 初始化提示词相关元素
-    this.promptNameInput = document.getElementById('prompt-name') as HTMLInputElement;
     this.promptPathInput = document.getElementById('prompt-path') as HTMLInputElement;
     this.selectFileButton = document.getElementById('select-file-btn') as HTMLButtonElement;
     this.promptFileInput = document.getElementById('prompt-file-input') as HTMLInputElement;
     this.addPromptButton = document.getElementById('add-prompt-btn') as HTMLButtonElement;
     this.promptList = document.getElementById('prompt-list');
+
+    // 在 initElements 中添加
+    this.selectFileButton = document.getElementById('select-file-btn') as HTMLButtonElement;
+    this.promptFileInput = document.getElementById('prompt-file-input') as HTMLInputElement;
+    this.fileNameDisplay = document.getElementById('file-name-display');
   }
 
   private async loadSettings(): Promise<void> {
@@ -290,32 +294,33 @@ private async saveDraft(): Promise<void> {
   }
 
   private setupEventListeners(): void {
-    this.saveButton?.addEventListener('click', () => this.saveSettings());
-    this.resetButton?.addEventListener('click', () => this.resetToDefaults());
-    this.addUrlButton?.addEventListener('click', () => this.addUrl());
-    this.addConfigButton?.addEventListener('click', () => this.addConfig());
-    this.exportButton?.addEventListener('click', () => this.exportConfig());
-    this.importButton?.addEventListener('click', () => this.importFileInput?.click());
-    this.smartFindButton?.addEventListener('click', () => this.smartFindCopyButtons());
-    this.importFileInput?.addEventListener('change', (e) => this.handleImportFile(e));
-    
-    this.newUrlInput?.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') this.addUrl();
-    });
+  // 基本功能
+  this.saveButton?.addEventListener('click', () => this.saveSettings());
+  this.resetButton?.addEventListener('click', () => this.resetToDefaults());
+  this.addUrlButton?.addEventListener('click', () => this.addUrl());
+  this.addConfigButton?.addEventListener('click', () => this.addConfig());
+  this.exportButton?.addEventListener('click', () => this.exportConfig());
+  this.importButton?.addEventListener('click', () => this.importFileInput?.click());
+  this.smartFindButton?.addEventListener('click', () => this.smartFindCopyButtons());
+  this.importFileInput?.addEventListener('change', (e) => this.handleImportFile(e));
 
-    this.configSelectorInput?.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter' && e.ctrlKey) this.addConfig();
-    });
+  // URL 输入回车快捷键
+  this.newUrlInput?.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') this.addUrl();
+  });
 
-    // 提示词相关事件监听器
-    this.selectFileButton?.addEventListener('click', () => this.promptFileInput?.click());
-    this.promptFileInput?.addEventListener('change', (e) => this.handleFileSelect(e));
-    this.addPromptButton?.addEventListener('click', () => this.addPrompt());
-    
-    this.promptNameInput?.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') this.addPrompt();
-    });
-  }
+  // 配置输入 Ctrl+Enter 快捷键
+  this.configSelectorInput?.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter' && e.ctrlKey) this.addConfig();
+  });
+
+  // ✅ 提示词相关（只保留一次）
+  this.selectFileButton?.addEventListener('click', () => this.promptFileInput?.click());
+  this.promptFileInput?.addEventListener('change', (e) => this.handleFileSelect(e));
+  this.addPromptButton?.addEventListener('click', () => this.addPrompt());
+
+}
+
 private async smartFindCopyButtons(): Promise<void> {
   try {
     const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -809,60 +814,94 @@ private async smartFindCopyButtons(): Promise<void> {
     });
   }
 
-  private async handleFileSelect(event: Event): Promise<void> {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    
-    if (!file) return;
+private currentFileName: string = '';
 
-    try {
-      this.currentFileContent = await file.text();
-      
-      if (this.promptPathInput) {
-        this.promptPathInput.value = file.name;
-      }
-      
-      this.showStatus(`✅ 已加载文件: ${file.name} (${this.currentFileContent.length} 字符)`, 'success');
-    } catch (error) {
-      console.error('读取文件失败:', error);
-      this.showStatus('❌ 读取文件失败', 'error');
+private async handleFileSelect(event: Event): Promise<void> {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  
+  if (!file) return;
+
+  try {
+    this.currentFileContent = await file.text();
+    
+    // 提取文件名（去掉扩展名）
+    this.currentFileName = file.name.replace(/\.(md|markdown|txt)$/i, '');
+    
+    // 更新显示
+    if (this.fileNameDisplay) {
+      this.fileNameDisplay.textContent = file.name;
+      this.fileNameDisplay.style.color = '#fff';
     }
+    
+    this.showStatus(
+      `✅ 已加载: ${file.name} (${this.currentFileContent.length} 字符)`, 
+      'success'
+    );
+  } catch (error) {
+    console.error('读取文件失败:', error);
+    this.showStatus('❌ 读取文件失败', 'error');
+  }
+}
+
+
+private addPrompt(): void {
+  // 验证：检查是否选择了文件
+  if (!this.currentFileContent || this.currentFileContent.trim().length === 0) {
+    this.showStatus('❌ 请先选择文件', 'error');
+    const fileWrapper = document.getElementById('file-selector-wrapper');
+    if (fileWrapper) {
+      fileWrapper.style.borderColor = '#ff4444';
+      setTimeout(() => {
+        if (fileWrapper) fileWrapper.style.borderColor = '#3e3e3e';
+      }, 2000);
+    }
+    return;
   }
 
-  private addPrompt(): void {
-    const name = this.promptNameInput?.value.trim();
-    
-    if (!name) {
-      this.showStatus('请输入提示词名称', 'error');
-      return;
-    }
-
-    if (!this.currentFileContent || this.currentFileContent.trim().length === 0) {
-      this.showStatus('请先选择并加载文件', 'error');
-      return;
-    }
-
-    if (!this.currentSettings.promptFiles) {
-      this.currentSettings.promptFiles = [];
-    }
-
-    const newPrompt: PromptFile = {
-      id: Date.now().toString(),
-      name,
-      path: this.currentFileContent, // 直接存储内容而不是路径
-      enabled: true
-    };
-
-    this.currentSettings.promptFiles.push(newPrompt);
-    this.renderPromptList();
-
-    if (this.promptNameInput) this.promptNameInput.value = '';
-    if (this.promptPathInput) this.promptPathInput.value = '';
-    this.currentFileContent = '';
-
-    this.saveDraft();
-    this.showStatus('✅ 已添加提示词，请点击保存设置', 'success');
+  if (!this.currentSettings.promptFiles) {
+    this.currentSettings.promptFiles = [];
   }
+
+  // 检查是否已存在同名提示词
+  const exists = this.currentSettings.promptFiles.some(
+    p => p.name === this.currentFileName
+  );
+  
+  if (exists) {
+    this.showStatus(`❌ 提示词 "${this.currentFileName}" 已存在`, 'error');
+    return;
+  }
+
+  const newPrompt = {
+    id: Date.now().toString(),
+    name: this.currentFileName, // 使用文件名
+    path: this.currentFileContent,
+    enabled: true
+  };
+
+  this.currentSettings.promptFiles.push(newPrompt);
+  this.renderPromptList();
+
+  // 清空
+  if (this.fileNameDisplay) {
+    this.fileNameDisplay.textContent = '未选择文件';
+    this.fileNameDisplay.style.color = '#888';
+  }
+  this.currentFileContent = '';
+  this.currentFileName = '';
+
+  // 重置文件输入框
+  if (this.promptFileInput) {
+    this.promptFileInput.value = '';
+  }
+
+  this.saveDraft();
+  
+  this.showStatus(`✅ 已添加提示词：${newPrompt.name}`, 'success');
+}
+
+
 
   private removePrompt(index: number): void {
     if (!this.currentSettings.promptFiles) return;
