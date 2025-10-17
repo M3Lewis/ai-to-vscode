@@ -660,24 +660,35 @@ private async smartFindCopyButtons(): Promise<void> {
     this.showStatus('✅ 已删除，请点击保存设置', 'success');
   }
 
-  private async saveSettings(): Promise<void> {
-    const settings: Settings = {
-      port: parseInt(this.portInput?.value || '8765'),
-      enabledUrls: this.currentSettings.enabledUrls,
-      showOnAllSites: this.showOnAllSitesCheckbox?.checked || false,
-      siteConfigs: this.currentSettings.siteConfigs,
-      promptFiles: this.currentSettings.promptFiles || []
-    };
+ private async saveSettings(): Promise<void> {
+  const saveBtn = document.getElementById('save-settings') as HTMLButtonElement;
+  
+  if (!saveBtn) return;
 
-    if (settings.port < 1024 || settings.port > 65535) {
-      this.showStatus('端口号必须在 1024-65535 之间', 'error');
-      return;
-    }
-
-    await chrome.storage.sync.set(settings);
+  try {
+    // 保存设置逻辑
+    await chrome.storage.sync.set(this.currentSettings);
     
-    this.showStatus('✅ 设置已保存，请刷新网页使配置生效', 'success');
+    // ✅ 保存成功，恢复按钮默认状态
+    saveBtn.textContent = '💾 保存设置';
+    saveBtn.className = 'primary';  // 恢复蓝色样式
+    saveBtn.disabled = false;
+    
+    this.showStatus('✅ 设置已保存', 'success');
+    
+    // 清除草稿
+    await chrome.storage.local.remove('draftSettings');
+    
+  } catch (error) {
+    console.error('保存设置失败:', error);
+    this.showStatus('❌ 保存失败', 'error');
+    
+    // 出错也恢复按钮状态
+    saveBtn.textContent = '💾 保存设置';
+    saveBtn.className = 'primary';
   }
+}
+
 
   private async resetToDefaults(): Promise<void> {
     if (!confirm('确定要恢复默认设置吗？所有自定义配置将被清除。')) {
