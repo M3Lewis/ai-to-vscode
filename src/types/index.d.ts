@@ -35,4 +35,14 @@ export interface SiteConfig {
 export interface PromptFile {
   id: string;
   name: string;      // 显示名称
-  path: string;      //
+  path: string;      // 存储文件内容（而不是路径）
+  enabled: boolean;  // 是否启用
+}
+
+export interface Settings {
+  port: number;
+  enabledUrls: string[];
+  showOnAllSites: boolean;
+  siteConfigs: SiteConfig[];
+  promptFiles?: PromptFile[];  // 提示词文件列表
+}

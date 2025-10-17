@@ -35,6 +35,7 @@ interface DraftSettings {
   enabledUrls?: string[];
   showOnAllSites?: boolean;
   siteConfigs?: SiteConfig[];
+  promptFiles?: PromptFile[];
   timestamp?: number;
 }
 
@@ -71,11 +72,21 @@ class PopupManager {
   private configContainerInput: HTMLInputElement | null = null;
   private addConfigButton: HTMLButtonElement | null = null;
   
+  // 提示词相关元素
+  private promptNameInput: HTMLInputElement | null = null;
+  private promptPathInput: HTMLInputElement | null = null;
+  private selectFileButton: HTMLButtonElement | null = null;
+  private promptFileInput: HTMLInputElement | null = null;
+  private addPromptButton: HTMLButtonElement | null = null;
+  private promptList: HTMLElement | null = null;
+  private currentFileContent: string = '';
+  
   private currentSettings: Settings = {
     port: 8765,
     enabledUrls: [...DEFAULT_URLS],
     showOnAllSites: false,
-    siteConfigs: []
+    siteConfigs: [],
+    promptFiles: []
   };
 
   private selectedCandidate: ButtonCandidate | null = null;
@@ -106,6 +117,14 @@ class PopupManager {
     this.configSelectorInput = document.getElementById('config-selector') as HTMLInputElement;
     this.configContainerInput = document.getElementById('config-container') as HTMLInputElement;
     this.addConfigButton = document.getElementById('add-config-btn') as HTMLButtonElement;
+    
+    // 初始化提示词相关元素
+    this.promptNameInput = document.getElementById('prompt-name') as HTMLInputElement;
+    this.promptPathInput = document.getElementById('prompt-path') as HTMLInputElement;
+    this.selectFileButton = document.getElementById('select-file-btn') as HTMLButtonElement;
+    this.promptFileInput = document.getElementById('prompt-file-input') as HTMLInputElement;
+    this.addPromptButton = document.getElementById('add-prompt-btn') as HTMLButtonElement;
+    this.promptList = document.getElementById('prompt-list');
   }
 
   private async loadSettings(): Promise<void> {
@@ -114,7 +133,8 @@ class PopupManager {
     port: 8765,
     enabledUrls: [...DEFAULT_URLS],
     showOnAllSites: false,
-    siteConfigs: []
+    siteConfigs: [],
+    promptFiles: []
   }) as Settings;
 
   // 尝试加载草稿
@@ -131,7 +151,8 @@ class PopupManager {
         port: draftData.port ?? settings.port,
         enabledUrls: draftData.enabledUrls ?? settings.enabledUrls,
         showOnAllSites: draftData.showOnAllSites ?? settings.showOnAllSites,
-        siteConfigs: draftData.siteConfigs ?? settings.siteConfigs
+        siteConfigs: draftData.siteConfigs ?? settings.siteConfigs,
+        promptFiles: draftData.promptFiles ?? settings.promptFiles
       };
       
       this.hasDraft = true;
@@ -151,6 +172,7 @@ class PopupManager {
   
   this.renderUrlList();
   this.renderConfigList();
+  this.renderPromptList();
 }
 
   // 新增：显示草稿指示器
@@ -195,6 +217,7 @@ private async saveDraft(): Promise<void> {
     enabledUrls: this.currentSettings.enabledUrls,
     showOnAllSites: this.showOnAllSitesCheckbox?.checked || false,
     siteConfigs: this.currentSettings.siteConfigs,
+    promptFiles: this.currentSettings.promptFiles,
     timestamp: Date.now()
   };
 
@@ -282,6 +305,15 @@ private async saveDraft(): Promise<void> {
 
     this.configSelectorInput?.addEventListener('keypress', (e) => {
       if (e.key === 'Enter' && e.ctrlKey) this.addConfig();
+    });
+
+    // 提示词相关事件监听器
+    this.selectFileButton?.addEventListener('click', () => this.promptFileInput?.click());
+    this.promptFileInput?.addEventListener('change', (e) => this.handleFileSelect(e));
+    this.addPromptButton?.addEventListener('click', () => this.addPrompt());
+    
+    this.promptNameInput?.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') this.addPrompt();
     });
   }
 private async smartFindCopyButtons(): Promise<void> {
@@ -628,7 +660,8 @@ private async smartFindCopyButtons(): Promise<void> {
       port: parseInt(this.portInput?.value || '8765'),
       enabledUrls: this.currentSettings.enabledUrls,
       showOnAllSites: this.showOnAllSitesCheckbox?.checked || false,
-      siteConfigs: this.currentSettings.siteConfigs
+      siteConfigs: this.currentSettings.siteConfigs,
+      promptFiles: this.currentSettings.promptFiles || []
     };
 
     if (settings.port < 1024 || settings.port > 65535) {
@@ -650,7 +683,8 @@ private async smartFindCopyButtons(): Promise<void> {
       port: 8765,
       enabledUrls: [...DEFAULT_URLS],
       showOnAllSites: false,
-      siteConfigs: []
+      siteConfigs: [],
+      promptFiles: []
     };
 
     if (this.portInput) this.portInput.value = '8765';
@@ -658,6 +692,7 @@ private async smartFindCopyButtons(): Promise<void> {
     
     this.renderUrlList();
     this.renderConfigList();
+    this.renderPromptList();
     this.showStatus('✅ 已恢复默认设置，请点击保存', 'success');
   }
 
@@ -735,4 +770,110 @@ private async smartFindCopyButtons(): Promise<void> {
     }, 4000);
   }
 
- 
+  private escapeHtml(text: string): string {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  // 提示词管理相关方法
+  private renderPromptList(): void {
+    if (!this.promptList) return;
+
+    const prompts = this.currentSettings.promptFiles || [];
+
+    if (prompts.length === 0) {
+      this.promptList.innerHTML = '<div class="empty-state">暂无提示词配置</div>';
+      return;
+    }
+
+    this.promptList.innerHTML = prompts
+      .map((prompt, index) => `
+        <div class="url-item">
+          <div style="flex: 1;">
+            <div style="font-weight: 500; color: #fff;">${this.escapeHtml(prompt.name)}</div>
+            <div style="font-size: 11px; color: #888; margin-top: 2px;">
+              内容长度: ${prompt.path.length} 字符
+            </div>
+          </div>
+          <button data-index="${index}">删除</button>
+        </div>
+      `)
+      .join('');
+
+    this.promptList.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const index = parseInt((e.target as HTMLElement).getAttribute('data-index') || '0');
+        this.removePrompt(index);
+      });
+    });
+  }
+
+  private async handleFileSelect(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    
+    if (!file) return;
+
+    try {
+      this.currentFileContent = await file.text();
+      
+      if (this.promptPathInput) {
+        this.promptPathInput.value = file.name;
+      }
+      
+      this.showStatus(`✅ 已加载文件: ${file.name} (${this.currentFileContent.length} 字符)`, 'success');
+    } catch (error) {
+      console.error('读取文件失败:', error);
+      this.showStatus('❌ 读取文件失败', 'error');
+    }
+  }
+
+  private addPrompt(): void {
+    const name = this.promptNameInput?.value.trim();
+    
+    if (!name) {
+      this.showStatus('请输入提示词名称', 'error');
+      return;
+    }
+
+    if (!this.currentFileContent || this.currentFileContent.trim().length === 0) {
+      this.showStatus('请先选择并加载文件', 'error');
+      return;
+    }
+
+    if (!this.currentSettings.promptFiles) {
+      this.currentSettings.promptFiles = [];
+    }
+
+    const newPrompt: PromptFile = {
+      id: Date.now().toString(),
+      name,
+      path: this.currentFileContent, // 直接存储内容而不是路径
+      enabled: true
+    };
+
+    this.currentSettings.promptFiles.push(newPrompt);
+    this.renderPromptList();
+
+    if (this.promptNameInput) this.promptNameInput.value = '';
+    if (this.promptPathInput) this.promptPathInput.value = '';
+    this.currentFileContent = '';
+
+    this.saveDraft();
+    this.showStatus('✅ 已添加提示词，请点击保存设置', 'success');
+  }
+
+  private removePrompt(index: number): void {
+    if (!this.currentSettings.promptFiles) return;
+    
+    this.currentSettings.promptFiles.splice(index, 1);
+    this.renderPromptList();
+    this.saveDraft();
+    this.showStatus('✅ 已删除，请点击保存设置', 'success');
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  new PopupManager();
+});

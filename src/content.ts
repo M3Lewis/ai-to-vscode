@@ -6,10 +6,32 @@ class FloatingPanel {
   private statusElement: HTMLElement | null = null;
   private enabled: boolean = false;
   private dailyCounter: number = 1;
+  private promptButtons: HTMLElement | null = null;
+  private isDebugMode: boolean = false;
 
   constructor() {
     this.initialize();
+    this.checkDebugMode();
+  }
 
+  private checkDebugMode(): void {
+    // 检测是否为调试模式（可以通过URL参数或localStorage控制）
+    this.isDebugMode = 
+      window.location.search.includes('debug=true') ||
+      localStorage.getItem('ai-vscode-debug') === 'true' ||
+      window.location.hostname === 'localhost';
+  }
+
+  private debugLog(message: string, ...args: any[]): void {
+    if (this.isDebugMode) {
+      console.log(message, ...args);
+    }
+  }
+
+  private debugWarn(message: string, ...args: any[]): void {
+    if (this.isDebugMode) {
+      console.warn(message, ...args);
+    }
   }
 
   private async initialize(): Promise<void> {
@@ -119,6 +141,14 @@ private createPanel(): void {
         文件名预览...
       </div>
       <button id="send-to-vscode">复制并保存</button>
+      <div class="prompt-buttons" id="prompt-buttons" style="
+        margin-top: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      ">
+        <!-- 提示词按钮将在这里动态生成 -->
+      </div>
       <div class="status" id="connection-status">
         <span class="status-dot"></span>
         <span class="status-text">未连接</span>
@@ -136,6 +166,10 @@ private createPanel(): void {
   closeButton?.addEventListener('click', () => this.togglePanel());
   
   this.statusElement = document.getElementById('connection-status');
+  this.promptButtons = document.getElementById('prompt-buttons');
+  
+  // 加载提示词按钮
+  this.loadPromptButtons();
 }
 
 
@@ -149,7 +183,7 @@ private createPanel(): void {
 
   private async handleSendClick(): Promise<void> {
   try {
-    console.log('🚀 开始发送流程...');
+    this.debugLog('🚀 开始发送流程...');
     
     // 特殊处理：AI Studio 需要先打开菜单
     if (window.location.hostname.includes('aistudio.google.com')) {
@@ -165,7 +199,7 @@ private createPanel(): void {
       return;
     }
 
-    console.log('✅ 找到按钮，准备点击');
+    this.debugLog('✅ 找到按钮，准备点击');
     copyButton.click();
     
     await this.delay(300);
@@ -177,10 +211,16 @@ private createPanel(): void {
       return;
     }
 
-    console.log('✅ 读取到内容，长度:', content.length);
+    this.debugLog('✅ 读取到内容，长度:', content.length);
+    
+    // 内容长度限制检查
+    if (content.length > 50000) { // 50KB限制
+      this.showError('对话内容过长，无法直接复制，请分批操作！');
+      return;
+    }
     
     const filename = this.generateSmartFilename(content);
-    console.log('📝 生成文件名:', filename);
+    this.debugLog('📝 生成文件名:', filename);
     
     this.showFilenamePreview(filename);
     this.sendToVSCode(content, filename);
@@ -196,7 +236,7 @@ private createPanel(): void {
 // 新增：专门处理 AI Studio 的复制
 private async handleAIStudioCopy(): Promise<void> {
   try {
-    console.log('🔍 AI Studio 特殊处理：查找菜单按钮');
+    this.debugLog('🔍 AI Studio 特殊处理：查找菜单按钮');
     
     // 1. 查找所有的 more_vert 按钮
     const moreButtons = Array.from(document.querySelectorAll<HTMLElement>(
@@ -213,11 +253,11 @@ private async handleAIStudioCopy(): Promise<void> {
     
     // 获取最后一个（最新的回答）
     const menuButton = moreButtons[moreButtons.length - 1];
-    console.log('✅ 找到菜单按钮，准备点击');
+    this.debugLog('✅ 找到菜单按钮，准备点击');
     
     // 2. 点击菜单按钮展开菜单
     menuButton.click();
-    console.log('✅ 菜单已展开，等待加载...');
+    this.debugLog('✅ 菜单已展开，等待加载...');
     
     // 3. 等待菜单展开
     await this.delay(500);
@@ -233,7 +273,7 @@ private async handleAIStudioCopy(): Promise<void> {
       return;
     }
     
-    console.log('✅ 找到复制按钮，准备点击');
+    this.debugLog('✅ 找到复制按钮，准备点击');
     
     // 5. 点击复制按钮
     copyButton.click();
@@ -249,11 +289,17 @@ private async handleAIStudioCopy(): Promise<void> {
       return;
     }
 
-    console.log('✅ 读取到内容，长度:', content.length);
+    this.debugLog('✅ 读取到内容，长度:', content.length);
+    
+    // 内容长度限制检查
+    if (content.length > 50000) { // 50KB限制
+      this.showError('对话内容过长，无法直接复制，请分批操作！');
+      return;
+    }
     
     // 8. 生成文件名并保存
     const filename = this.generateSmartFilename(content);
-    console.log('📝 生成文件名:', filename);
+    this.debugLog('📝 生成文件名:', filename);
     
     this.showFilenamePreview(filename);
     this.sendToVSCode(content, filename);
@@ -460,6 +506,222 @@ private async handleAIStudioCopy(): Promise<void> {
 
   private delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  // 提示词相关方法
+  private async loadPromptButtons(): Promise<void> {
+    try {
+      const result = await chrome.storage.sync.get(['promptFiles']);
+      const promptFiles = result.promptFiles || [];
+      
+      this.createPromptButtons(promptFiles);
+    } catch (error) {
+      console.error('加载提示词失败:', error);
+    }
+  }
+
+  private createPromptButtons(prompts: any[]): void {
+    if (!this.promptButtons || prompts.length === 0) return;
+
+    this.promptButtons.innerHTML = prompts
+      .filter(p => p.enabled)
+      .map(prompt => `
+        <button 
+          class="prompt-btn" 
+          data-prompt-id="${prompt.id}"
+          data-prompt-name="${this.escapeHtml(prompt.name)}"
+          style="
+            padding: 8px 12px;
+            background: #6c5ce7;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+            text-align: left;
+          "
+          onmouseover="this.style.background='#5f4dd1'"
+          onmouseout="this.style.background='#6c5ce7'"
+        >
+          📝 ${this.escapeHtml(prompt.name)}
+        </button>
+      `)
+      .join('');
+
+    // 保存提示词内容到按钮的自定义属性
+    const buttons = this.promptButtons.querySelectorAll('.prompt-btn');
+    buttons.forEach((btn, index) => {
+      (btn as any).__promptContent = prompts.filter(p => p.enabled)[index].path;
+      
+      btn.addEventListener('click', (e) => {
+        const target = e.currentTarget as any;
+        const content = target.__promptContent;
+        const name = target.getAttribute('data-prompt-name');
+        if (content) {
+          this.applyPrompt(content, name || '');
+        }
+      });
+    });
+  }
+
+  private async applyPrompt(content: string, promptName: string): Promise<void> {
+    try {
+      console.log('📝 开始应用提示词:', promptName);
+      
+      if (!content || content.trim().length === 0) {
+        this.showError('提示词内容为空');
+        return;
+      }
+      
+      console.log('✅ 内容长度:', content.length);
+      
+      // 1. 查找 System Instructions 按钮
+      const sysInstructionsBtn = document.querySelector<HTMLElement>(
+        'button[data-test-system-instructions-card], ' +
+        'button[aria-label="System instructions"], ' +
+        'button.system-instructions-card'
+      );
+      
+      if (!sysInstructionsBtn) {
+        this.showError('未找到 System Instructions 按钮');
+        return;
+      }
+      
+      console.log('✅ 找到 System Instructions 按钮');
+      
+      // 2. 点击打开界面
+      sysInstructionsBtn.click();
+      await this.delay(500);
+      
+      // 3. 查找文本框
+      const textarea = document.querySelector<HTMLTextAreaElement>(
+        'textarea[aria-label="System instructions"], ' +
+        'textarea[placeholder*="tone and style"], ' +
+        'textarea.in-run-settings'
+      );
+      
+      if (!textarea) {
+        this.showError('未找到文本框');
+        // 尝试关闭可能打开的对话框
+        this.closeSystemInstructionsDialog();
+        return;
+      }
+      
+      console.log('✅ 找到文本框');
+      
+      // 4. 清空现有内容
+      textarea.value = '';
+      
+      // 5. 填充新内容
+      textarea.value = content;
+      
+      // 6. 触发事件以确保 Angular 检测到变化
+      textarea.blur();
+      textarea.dispatchEvent(new Event('input', { bubbles: true }));
+      textarea.dispatchEvent(new Event('change', { bubbles: true }));
+      textarea.dispatchEvent(new Event('blur', { bubbles: true }));
+      
+
+      // 触发 Angular 的 ngModelChange
+      const event = new CustomEvent('input', { bubbles: true, cancelable: true });
+      textarea.dispatchEvent(event);
+      
+      console.log('✅ 内容已填充');
+      
+      // 7. 等待 Angular 更新
+      await this.delay(800);
+      
+      // 8. 关闭对话框
+      this.closeSystemInstructionsDialog();
+      
+      this.showSuccess(`✅ 已应用: ${promptName}`);
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '未知错误';
+      console.error('应用提示词失败:', error);
+      this.showError(`应用失败：${errorMessage}`);
+    }
+  }
+
+  private closeSystemInstructionsDialog(): void {
+    // 查找典型关闭按钮 - 使用更精确的选择器
+    const selectors = [
+      'button[data-test-close-button]',
+      'button[aria-label="Close panel"]',
+      'button[mat-dialog-close]',
+      'button[iconname="close"]',
+      'button.ms-button-icon[iconname="close"]',
+      'button[aria-label="Close panel"][data-test-close-button]'
+    ];
+    
+    let closeBtn: HTMLElement | null = null;
+    
+    // 尝试每个选择器
+    for (const selector of selectors) {
+      closeBtn = document.querySelector<HTMLElement>(selector);
+      if (closeBtn && closeBtn.offsetParent !== null) {
+        console.log(`✅ 找到关闭按钮: ${selector}`);
+        break;
+      }
+    }
+    
+    if (closeBtn) {
+      // 检查按钮状态
+      const isVisible = closeBtn.offsetParent !== null;
+      const isDisabled = closeBtn.hasAttribute('aria-disabled') && closeBtn.getAttribute('aria-disabled') === 'true';
+      const isEnabled = closeBtn.getAttribute('aria-disabled') === 'false' || !closeBtn.hasAttribute('aria-disabled');
+      
+      console.log('关闭按钮状态:', {
+        isVisible,
+        isDisabled,
+        isEnabled,
+        ariaDisabled: closeBtn.getAttribute('aria-disabled'),
+        className: closeBtn.className
+      });
+      
+      // 确保按钮可见且可点击
+      if (isVisible && isEnabled) {
+        try {
+          closeBtn.click();
+          console.log('✅ 已自动关闭System Instructions界面');
+        } catch (error) {
+          console.error('点击关闭按钮失败:', error);
+          // 尝试其他方式触发点击
+          const clickEvent = new MouseEvent('click', {
+            bubbles: true,
+            cancelable: true,
+            view: window
+          });
+          closeBtn.dispatchEvent(clickEvent);
+          console.log('✅ 已通过事件触发关闭System Instructions界面');
+        }
+      } else {
+        console.warn('❌ 关闭按钮不可用或已禁用', {
+          isVisible,
+          isDisabled,
+          isEnabled
+        });
+      }
+    } else {
+      console.warn('❌ 未找到可用的关闭按钮');
+      // 调试：列出所有可能的按钮
+      const allButtons = document.querySelectorAll('button');
+      console.log('页面上的所有按钮:', Array.from(allButtons).map(btn => ({
+        tagName: btn.tagName,
+        className: btn.className,
+        ariaLabel: btn.getAttribute('aria-label'),
+        dataTest: btn.getAttribute('data-test-close-button'),
+        iconName: btn.getAttribute('iconname'),
+        matDialogClose: btn.getAttribute('mat-dialog-close')
+      })));
+    }
+  }
+
+  private escapeHtml(text: string): string {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
   }
 }
 

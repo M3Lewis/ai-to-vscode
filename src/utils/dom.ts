@@ -38,6 +38,12 @@ export class DOMHelper {
     const currentHostname = window.location.hostname;
     console.log('🔍 查找COPY按钮，当前域名:', currentHostname);
 
+    // 针对Perplexity使用专用查找策略
+    if (currentHostname.includes('perplexity.ai')) {
+      return this.findPerplexityCopyButton();
+    }
+
+    // 其它站点仍然可以用默认策略
     const defaultConfig = this.DEFAULT_SELECTORS.find(c =>
       currentHostname.includes(c.hostname)
     );
@@ -58,6 +64,55 @@ export class DOMHelper {
   public static async loadConfigs(): Promise<void> {
     // 空实现，保留接口兼容性
   }
+
+  // 推荐专用方法 - Perplexity专用查找
+  private static findPerplexityCopyButton(): HTMLElement | null {
+    console.log('🔍 使用 Perplexity 专用查找逻辑');
+  
+    // 这里按你的路径简化版本
+    const replyContainers = document.querySelectorAll(
+      'div.py-md.md\\:pb-headerHeight.mx-auto.max-w-threadContentWidth > div'
+    );
+  
+    if (replyContainers.length === 0) {
+      console.log('❌ 未找到回复容器');
+      return null;
+    }
+  
+    console.log(`✅ 找到 ${replyContainers.length} 个回复容器`);
+  
+    // 依然取最后一个回复容器作为最新回复
+    const lastReply = replyContainers[replyContainers.length - 1];
+  
+    // 查找复制按钮，优先尝试常用的data-testid及aria-label选择器
+    const copyBtns = lastReply.querySelectorAll<HTMLElement>(
+      'button[aria-label*="Copy"], button[data-testid*="copy"]'
+    );
+  
+    if (copyBtns.length > 0) {
+      console.log(`✅ 在最新回复中找到 ${copyBtns.length} 个复制按钮`);
+      return copyBtns[copyBtns.length - 1]; 
+    }
+  
+    // 进一步递归查找包含“copy”关键词的按钮
+    console.log('⚠️ 未找到标准复制按钮，尝试递归搜索...');
+    const allButtons = Array.from(lastReply.querySelectorAll<HTMLElement>('button'));
+  
+    for (const button of allButtons) {
+      const ariaLabel = button.getAttribute('aria-label')?.toLowerCase() || '';
+      const dataTestId = button.getAttribute('data-testid')?.toLowerCase() || '';
+      const text = button.textContent?.toLowerCase() || '';
+  
+      if (ariaLabel.includes('copy') || dataTestId.includes('copy') || text.includes('copy')) {
+        console.log('✅ 通过递归搜索找到复制按钮');
+        return button;
+      }
+    }
+  
+    console.log('❌ 未找到 Perplexity 复制按钮');
+    return null;
+  }
+  
 
   private static findButtonWithConfig(config: SiteConfig): HTMLElement | null {
     const selector = config.copyButtonSelector;
@@ -99,39 +154,45 @@ export class DOMHelper {
   }
 
   // 新增：专门处理 Claude
-  private static findClaudeCopyButton(): HTMLElement | null {
-    console.log('🔍 使用 Claude 专用查找逻辑');
-    
-    // 方法1：通过 data-testid 查找（最准确）
-    const buttons = Array.from(document.querySelectorAll<HTMLElement>('button[data-testid="action-bar-copy"]'));
-    
-    if (buttons.length > 0) {
-      console.log(`✅ 找到 ${buttons.length} 个 Claude 复制按钮`);
-      // 返回最后一个（最新的回答）
-      return buttons[buttons.length - 1];
-    }
-    
-    // 方法2：通过 SVG 路径查找（复制图标的特征）
-    const allButtons = Array.from(document.querySelectorAll<HTMLElement>('button'));
-    for (let i = allButtons.length - 1; i >= 0; i--) {
-      const btn = allButtons[i];
-      const svg = btn.querySelector('svg');
-      if (svg) {
-        const path = svg.querySelector('path');
-        if (path) {
-          const d = path.getAttribute('d') || '';
-          // Claude 复制按钮的 SVG path 包含特定的路径
-          if (d.includes('M10 1.5C11.1097') || d.includes('clipboard')) {
-            console.log('✅ 通过 SVG 路径找到 Claude 复制按钮');
-            return btn;
-          }
+private static findClaudeCopyButton(): HTMLElement | null {
+  console.log('🔍 使用 Claude 专用查找逻辑');
+  
+  // 方法1：通过 data-testid 查找（最准确）
+  const buttons = Array.from(document.querySelectorAll<HTMLElement>('button[data-testid="action-bar-copy"]'));
+  
+  if (buttons.length > 0) {
+    console.log(`✅ 找到 ${buttons.length} 个 Claude 复制按钮`);
+    return buttons[buttons.length - 1];
+  }
+  
+  // ⚠️ 备用方案：限制在对话区域内查找
+  const conversationArea = document.querySelector('main, [role="main"], .conversation-container');
+  if (!conversationArea) {
+    console.log('❌ 未找到对话区域');
+    return null;
+  }
+  
+  // 只在对话区域内查找按钮
+  const allButtons = Array.from(conversationArea.querySelectorAll<HTMLElement>('button'));
+  for (let i = allButtons.length - 1; i >= 0; i--) {
+    const btn = allButtons[i];
+    const svg = btn.querySelector('svg');
+    if (svg) {
+      const path = svg.querySelector('path');
+      if (path) {
+        const d = path.getAttribute('d') || '';
+        if (d.includes('M10 1.5C11.1097') || d.includes('clipboard')) {
+          console.log('✅ 通过 SVG 路径找到 Claude 复制按钮');
+          return btn;
         }
       }
     }
-    
-    console.log('❌ 未找到 Claude 复制按钮');
-    return null;
   }
+  
+  console.log('❌ 未找到 Claude 复制按钮');
+  return null;
+}
+
 
   private static findAIStudioCopyButton(): HTMLElement | null {
   console.log('🔍 使用 AI Studio 专用查找逻辑');
@@ -200,33 +261,45 @@ export class DOMHelper {
 
 
   private static findButtonGeneric(): HTMLElement | null {
-    console.log('🔍 使用通用策略...');
-    
-    const selectors = [
-      'button[data-testid*="copy"]', // 新增：优先查找 data-testid
-      'button[aria-label*="Copy" i]',
-      'button[aria-label*="复制" i]',
-      'button[title*="Copy" i]',
-      'button.copy-button',
-      'button.copy-btn',
-      '[data-testid*="copy"]'
-    ];
+  console.log('🔍 使用通用策略...');
+  
+  const selectors = [
+    'button[data-testid*="copy"]',
+    'button[aria-label*="Copy" i]',
+    'button[aria-label*="复制" i]',
+    'button[title*="Copy" i]',
+    'button.copy-button',
+    'button.copy-btn',
+    '[data-testid*="copy"]'
+  ];
 
-    for (const selector of selectors) {
-      try {
-        const buttons = document.querySelectorAll<HTMLElement>(selector);
-        if (buttons.length > 0) {
-          console.log(`✅ 通用选择器 "${selector}" 找到 ${buttons.length} 个按钮`);
-          return buttons[buttons.length - 1];
+  // 添加性能保护：限制查找范围
+  const searchRoot = document.querySelector('main, [role="main"], #root') || document;
+
+  for (const selector of selectors) {
+    try {
+      const buttons = searchRoot.querySelectorAll<HTMLElement>(selector);
+      if (buttons.length > 0) {
+        console.log(`✅ 通用选择器 "${selector}" 找到 ${buttons.length} 个按钮`);
+        
+        // 🔥 性能保护：如果按钮数量异常多，只检查最后10个
+        if (buttons.length > 100) {
+          console.warn(`⚠️ 按钮数量过多 (${buttons.length})，只检查最后10个`);
+          const recentButtons = Array.from(buttons).slice(-10);
+          return recentButtons[recentButtons.length - 1];
         }
-      } catch (e) {
-        continue;
+        
+        return buttons[buttons.length - 1];
       }
+    } catch (e) {
+      continue;
     }
-
-    console.error('❌ 所有策略都失败了');
-    return null;
   }
+
+  console.error('❌ 所有策略都失败了');
+  return null;
+}
+
 
   public static async getClipboardContent(): Promise<string> {
     try {

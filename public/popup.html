@@ -629,4 +629,76 @@
         <input 
           type="text" 
           id="prompt-path" 
-          placeholder
+          placeholder="点击'选择文件'按钮选择 Markdown 文件"
+          readonly
+          style="flex: 1;"
+        >
+        <button 
+          id="select-file-btn"
+          style="
+            padding: 8px 12px;
+            background: #3e3e3e;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            white-space: nowrap;
+          "
+        >
+          📁 选择文件
+        </button>
+      </div>
+      <input 
+        type="file" 
+        id="prompt-file-input" 
+        accept=".md,.markdown,.txt"
+        style="display: none;"
+      >
+      <button id="add-prompt-btn">添加提示词</button>
+    </div>
+    
+    <div class="url-list" id="prompt-list">
+      <div class="empty-state">暂无提示词配置</div>
+    </div>
+    
+    <details>
+      <summary>💡 如何使用提示词功能？</summary>
+      <div>
+        <p style="margin-bottom: 8px;"><strong>配置提示词：</strong></p>
+        <ol style="margin-left: 20px; margin-bottom: 12px;">
+          <li>准备Markdown格式的提示词文件</li>
+          <li>输入提示词名称（如："代码助手"）</li>
+          <li>点击"📁 选择文件"选择文件</li>
+          <li>点击"添加提示词"</li>
+          <li>点击"💾 保存设置"</li>
+        </ol>
+        
+        <p style="margin-bottom: 8px;"><strong>使用提示词：</strong></p>
+        <ol style="margin-left: 20px;">
+          <li>访问Google AI Studio</li>
+          <li>悬浮窗会显示配置的提示词按钮</li>
+          <li>点击任意提示词按钮</li>
+          <li>自动填充到System Instructions中</li>
+        </ol>
+      </div>
+    </details>
+  </div>
+
+  <div class="button-group">
+    <button class="primary" id="save-settings">💾 保存设置</button>
+    <button class="secondary" id="reset-defaults">🔄 恢复默认</button>
+  </div>
+
+  <div class="button-group">
+    <button class="tertiary" id="export-config">📤 导出配置</button>
+    <button class="tertiary" id="import-config">📥 导入配置</button>
+  </div>
+
+  <input type="file" id="import-file-input" accept=".json">
+
+  <div id="status"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
