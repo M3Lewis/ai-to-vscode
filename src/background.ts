@@ -140,7 +140,6 @@ function scheduleReconnect() {
 function sendMessageToVSCode(message: any, sendResponse: Function) {
   if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) {
     queueMessage(message, sendResponse);
-    // 这时不能直接调用connectWebSocket，因为有定时器防抖
     debugStatus('sendMessageToVSCode: queue');
     return;
   }
@@ -150,14 +149,17 @@ function sendMessageToVSCode(message: any, sendResponse: Function) {
       type: 'saveFile',
       content: message.content,
       filename: message.filename,
+      savePath: message.savePath || '',  // 传递路径
       timestamp: Date.now()
     }));
     debugStatus('sendMessageToVSCode: sent');
     sendResponse({ success: true });
   } catch (error) {
-    sendResponse({ success: false, error: (error as Error).message });
+    const msg = (typeof error === 'object' && error && 'message' in error) ? (error as any).message : String(error);
+    sendResponse({ success: false, error: msg });
   }
 }
+
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'sendToVSCode') {

@@ -18,6 +18,7 @@ interface Settings {
   showOnAllSites: boolean;
   siteConfigs: SiteConfig[];
   promptFiles?: PromptFile[];  // 提示词文件列表
+  savePath?: string;
 }
 
 // 修改原来的 ButtonCandidate 接口，去掉 element 属性
@@ -80,13 +81,15 @@ class PopupManager {
   private promptList: HTMLElement | null = null;
   private fileNameDisplay: HTMLElement | null = null;
   private currentFileContent: string = '';
+
+  private savePathInput: HTMLInputElement | null = null;
   
   private currentSettings: Settings = {
     port: 8765,
     enabledUrls: [...DEFAULT_URLS],
     showOnAllSites: false,
     siteConfigs: [],
-    promptFiles: []
+    promptFiles: [],
   };
 
   private selectedCandidate: ButtonCandidate | null = null;
@@ -129,6 +132,8 @@ class PopupManager {
     this.selectFileButton = document.getElementById('select-file-btn') as HTMLButtonElement;
     this.promptFileInput = document.getElementById('prompt-file-input') as HTMLInputElement;
     this.fileNameDisplay = document.getElementById('file-name-display');
+
+    this.savePathInput = document.getElementById('save-path') as HTMLInputElement;
   }
 
   private async loadSettings(): Promise<void> {
@@ -170,9 +175,13 @@ class PopupManager {
     this.currentSettings = settings;
   }
 
+  if (this.savePathInput) {
+    this.savePathInput.value = settings.savePath || '';
+  }
   // 更新UI
   if (this.portInput) this.portInput.value = this.currentSettings.port.toString();
   if (this.showOnAllSitesCheckbox) this.showOnAllSitesCheckbox.checked = this.currentSettings.showOnAllSites;
+  
   
   this.renderUrlList();
   this.renderConfigList();
@@ -303,6 +312,7 @@ private async saveDraft(): Promise<void> {
   this.importButton?.addEventListener('click', () => this.importFileInput?.click());
   this.smartFindButton?.addEventListener('click', () => this.smartFindCopyButtons());
   this.importFileInput?.addEventListener('change', (e) => this.handleImportFile(e));
+  this.savePathInput?.addEventListener('input', () => this.saveDraft());
 
   // URL 输入回车快捷键
   this.newUrlInput?.addEventListener('keypress', (e) => {
@@ -667,6 +677,8 @@ private async smartFindCopyButtons(): Promise<void> {
 
   try {
     // 保存设置逻辑
+    this.currentSettings.savePath = this.savePathInput?.value.trim() || '';
+  
     await chrome.storage.sync.set(this.currentSettings);
     
     // ✅ 保存成功，恢复按钮默认状态
@@ -705,6 +717,7 @@ private async smartFindCopyButtons(): Promise<void> {
 
     if (this.portInput) this.portInput.value = '8765';
     if (this.showOnAllSitesCheckbox) this.showOnAllSitesCheckbox.checked = false;
+    
     
     this.renderUrlList();
     this.renderConfigList();

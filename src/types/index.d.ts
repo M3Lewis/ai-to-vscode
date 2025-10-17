@@ -1,14 +1,17 @@
 // 消息类型定义
-export interface MessageToVSCode {
+interface MessageToVSCode {
   action: 'sendToVSCode';
   content: string;
   filename: string;
+  savePath?: string;  // 新增：保存路径
 }
 
-export interface MessageResponse {
+interface MessageResponse {
   success: boolean;
   error?: string;
+  path?: string;  // 可选：返回完整保存路径
 }
+
 
 export interface WSMessage {
   type: 'saveFile' | 'success' | 'error';

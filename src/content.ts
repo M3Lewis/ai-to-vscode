@@ -464,37 +464,59 @@ private async handleAIStudioCopy(): Promise<void> {
     }
   }
 
-  private sendToVSCode(content: string, filename: string): void {
-  const message: MessageToVSCode = {
-    action: 'sendToVSCode',
-    content,
-    filename
-  };
-  
-  console.log('📤 发送到VS Code:', filename);
-  
-  // 设置超时
-  const timeout = setTimeout(() => {
-    this.showError('发送超时，请检查VS Code是否已启动WebSocket服务');
-  }, 5000);
-  
-  chrome.runtime.sendMessage(message, (response: MessageResponse) => {
-    clearTimeout(timeout);
+private async sendToVSCode(content: string, filename: string): Promise<void> {
+  try {
+    // 获取保存路径配置
+    const settings = await chrome.storage.sync.get({ savePath: '' });
+    const savePath = (settings.savePath || '').trim();
     
-    if (chrome.runtime.lastError) {
-      console.error('扩展通信失败:', chrome.runtime.lastError);
-      this.showError('扩展通信失败，请重新加载页面');
-      return;
-    }
+    const message: MessageToVSCode = {
+      action: 'sendToVSCode',
+      content,
+      filename,
+      savePath  // 添加保存路径
+    };
     
-    if (response && response.success) {
-      this.showSuccess(`✅ 已保存: ${filename}`);
-    } else {
-      const errorMsg = response?.error || '未知错误';
-      this.showError(`发送失败：${errorMsg}`);
-    }
-  });
+    console.log('📤 发送到 VS Code:', {
+      filename,
+      savePath: savePath || '(根目录)',
+      contentLength: content.length
+    });
+    
+    // 设置超时
+    const timeout = setTimeout(() => {
+      this.showError('发送超时，请检查 VS Code 是否已启动 WebSocket 服务');
+    }, 5000);
+    
+    // 发送消息
+    chrome.runtime.sendMessage(message, (response: MessageResponse) => {
+      clearTimeout(timeout);
+      
+      // 检查扩展通信错误
+      if (chrome.runtime.lastError) {
+        console.error('❌ 扩展通信失败:', chrome.runtime.lastError);
+        this.showError('扩展通信失败，请重新加载页面');
+        return;
+      }
+      
+      // 检查响应
+      if (response && response.success) {
+        const pathInfo = savePath ? ` → ${savePath}/` : ' → 根目录/';
+        this.showSuccess(`✅ 已保存: ${pathInfo}${filename}`);
+        console.log('✅ 文件保存成功');
+      } else {
+        const errorMsg = response?.error || '未知错误';
+        console.error('❌ 保存失败:', errorMsg);
+        this.showError(`保存失败：${errorMsg}`);
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ sendToVSCode 出错:', error);
+    this.showError('发送失败，请重试');
+  }
 }
+
 
 
   private setupMessageListener(): void {
