@@ -137,14 +137,27 @@ class PopupManager {
   }
 
   private async loadSettings(): Promise<void> {
-  // 先加载正式配置
-  const settings = await chrome.storage.sync.get({
-    port: 8765,
-    enabledUrls: [...DEFAULT_URLS],
-    showOnAllSites: false,
-    siteConfigs: [],
-    promptFiles: []
-  }) as Settings;
+  // 先加载正式配置，使用单一 key "settings"
+  const result = await chrome.storage.sync.get('settings');
+  let settings: Settings;
+  if (result.settings) {
+    settings = result.settings as Settings;
+  } else {
+    // 回退到旧格式（兼容性）
+    const oldSettings = await chrome.storage.sync.get({
+      port: 8765,
+      enabledUrls: [...DEFAULT_URLS],
+      showOnAllSites: false,
+      siteConfigs: [],
+      promptFiles: []
+    }) as Settings;
+    settings = oldSettings;
+  }
+
+  // 从 local 加载提示词文件（分离存储）
+  const promptResult = await chrome.storage.local.get('promptFiles');
+  const promptFiles: PromptFile[] = promptResult.promptFiles || [];
+  settings.promptFiles = promptFiles;
 
   // 尝试加载草稿
   const draft = await chrome.storage.local.get('draftSettings');
@@ -176,7 +189,7 @@ class PopupManager {
   }
 
   if (this.savePathInput) {
-    this.savePathInput.value = settings.savePath || '';
+    this.savePathInput.value = this.currentSettings.savePath || '';
   }
   // 更新UI
   if (this.portInput) this.portInput.value = this.currentSettings.port.toString();
@@ -671,34 +684,97 @@ private async smartFindCopyButtons(): Promise<void> {
   }
 
  private async saveSettings(): Promise<void> {
-  const saveBtn = document.getElementById('save-settings') as HTMLButtonElement;
-  
-  if (!saveBtn) return;
+ const saveBtn = document.getElementById('save-settings') as HTMLButtonElement;
+ 
+ if (!saveBtn) return;
 
-  try {
-    // 保存设置逻辑
-    this.currentSettings.savePath = this.savePathInput?.value.trim() || '';
-  
-    await chrome.storage.sync.set(this.currentSettings);
-    
-    // ✅ 保存成功，恢复按钮默认状态
-    saveBtn.textContent = '💾 保存设置';
-    saveBtn.className = 'primary';  // 恢复蓝色样式
-    saveBtn.disabled = false;
-    
-    this.showStatus('✅ 设置已保存', 'success');
-    
-    // 清除草稿
-    await chrome.storage.local.remove('draftSettings');
-    
-  } catch (error) {
-    console.error('保存设置失败:', error);
-    this.showStatus('❌ 保存失败', 'error');
-    
-    // 出错也恢复按钮状态
-    saveBtn.textContent = '💾 保存设置';
-    saveBtn.className = 'primary';
-  }
+ try {
+   // 保存设置逻辑
+   this.currentSettings.savePath = this.savePathInput?.value.trim() || '';
+ 
+   // 分离存储：提示词文件保存到 local
+   const promptFiles = this.currentSettings.promptFiles || [];
+   await chrome.storage.local.set({ promptFiles });
+   
+   // 创建不包含 promptFiles 的配置对象用于 sync 存储
+   const settingsForSync: Settings = {
+     ...this.currentSettings,
+     promptFiles: undefined
+   };
+   // 删除 promptFiles 字段，避免占用空间
+   delete settingsForSync.promptFiles;
+ 
+   // 调试：计算配置大小
+   const settingsJson = JSON.stringify(settingsForSync);
+   const sizeInBytes = new Blob([settingsJson]).size;
+   console.log(`保存配置到 sync，大小: ${sizeInBytes} 字节 (${(sizeInBytes / 1024).toFixed(2)} KB)`);
+   if (sizeInBytes > 8192) {
+     console.warn('配置大小超过 8KB，可能超出 chrome.storage.sync 单项限制');
+   }
+   // 详细分析各部分大小
+   const analysis: Record<string, number> = {};
+   if (promptFiles.length > 0) {
+     let totalPromptSize = 0;
+     promptFiles.forEach((p, i) => {
+       const promptSize = new Blob([p.path]).size;
+       totalPromptSize += promptSize;
+       analysis[`promptFiles[${i}].path`] = promptSize;
+     });
+     analysis['promptFiles.total'] = totalPromptSize;
+   }
+   analysis['enabledUrls'] = new Blob([JSON.stringify(this.currentSettings.enabledUrls)]).size;
+   analysis['siteConfigs'] = new Blob([JSON.stringify(this.currentSettings.siteConfigs)]).size;
+   analysis['other'] = sizeInBytes - (analysis['promptFiles.total'] || 0) - analysis['enabledUrls'] - analysis['siteConfigs'];
+   console.log('配置大小分析:', analysis);
+ 
+   // 使用单一 key "settings" 存储整个配置对象（不含 promptFiles），避免超出存储限制
+   await new Promise<void>((resolve, reject) => {
+     chrome.storage.sync.set(
+       { settings: settingsForSync },
+       () => {
+         const err = chrome.runtime.lastError;
+         if (err) {
+           console.error('chrome.storage.sync.set error:', err);
+           reject(err);
+         } else {
+           resolve();
+         }
+       }
+     );
+   });
+   
+   // ✅ 保存成功，恢复按钮默认状态
+   saveBtn.textContent = '💾 保存设置';
+   saveBtn.className = 'primary';  // 恢复蓝色样式
+   saveBtn.disabled = false;
+   
+   this.showStatus('✅ 设置已保存', 'success');
+   
+   // 清除草稿
+   await chrome.storage.local.remove('draftSettings');
+   
+ } catch (error) {
+   console.error('保存设置失败:', error);
+   // 提取可读的错误消息
+   let errorMessage = '未知错误';
+   if (error instanceof Error) {
+     errorMessage = error.message;
+   } else if (error && typeof error === 'object') {
+     // 处理 chrome.runtime.lastError 对象
+     if ('message' in error && typeof error.message === 'string') {
+       errorMessage = error.message;
+     } else {
+       errorMessage = JSON.stringify(error);
+     }
+   } else {
+     errorMessage = String(error);
+   }
+   this.showStatus(`❌ 保存失败: ${errorMessage}`, 'error');
+   
+   // 出错也恢复按钮状态
+   saveBtn.textContent = '💾 保存设置';
+   saveBtn.className = 'primary';
+ }
 }
 
 

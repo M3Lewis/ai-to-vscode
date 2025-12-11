@@ -568,8 +568,18 @@ private async sendToVSCode(content: string, filename: string): Promise<void> {
   // 提示词相关方法
   private async loadPromptButtons(): Promise<void> {
     try {
-      const result = await chrome.storage.sync.get(['promptFiles']);
-      const promptFiles = result.promptFiles || [];
+      // 优先从 local 加载（新存储方式）
+      const localResult = await chrome.storage.local.get(['promptFiles']);
+      let promptFiles = localResult.promptFiles || [];
+      
+      // 如果 local 中没有，回退到 sync（旧存储方式）
+      if (promptFiles.length === 0) {
+        const syncResult = await chrome.storage.sync.get(['promptFiles']);
+        promptFiles = syncResult.promptFiles || [];
+        if (promptFiles.length > 0) {
+          console.log('从 sync 加载提示词（旧格式）');
+        }
+      }
       
       this.createPromptButtons(promptFiles);
     } catch (error) {
