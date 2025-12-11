@@ -121,53 +121,67 @@ class FloatingPanel {
 private createPanel(): void {
   this.panel = document.createElement('div');
   this.panel.id = 'ai-vscode-panel';
-  
+
   this.panel.innerHTML = `
     <div class="panel-container">
-      <div class="panel-header">
-        <span>发送到VS Code</span>
-        <button class="close-btn" id="close-panel">×</button>
+      <div class="ai-vscode-header">
+        <span class="ai-vscode-title">发送到VS Code</span>
+        <button id="toggle-prompts" class="ai-vscode-toggle" title="折叠/展开提示词">▾</button>
+        <button id="close-panel" class="ai-vscode-close">✕</button>
       </div>
-      <div class="filename-preview" id="filename-preview" style="
-        font-size: 11px;
-        color: #888;
-        padding: 6px 8px;
-        background: #2d2d2d;
-        border-radius: 4px;
-        margin-bottom: 8px;
-        word-break: break-all;
-        display: none;
-      ">
-        文件名预览...
+      <div id="filename-preview" class="filename-preview">文件名预览...</div>
+
+      <div id="prompt-section">
+        <div class="prompt-section-header">
+          <span>常用提示词</span>
+        </div>
+        <div id="prompt-buttons" class="prompt-buttons"></div>
       </div>
-      <button id="send-to-vscode">复制并保存</button>
-      <div class="prompt-buttons" id="prompt-buttons" style="
-        margin-top: 8px;
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-      ">
-        <!-- 提示词按钮将在这里动态生成 -->
-      </div>
-      <div class="status" id="connection-status">
-        <span class="status-dot"></span>
-        <span class="status-text">未连接</span>
+
+      <div class="ai-vscode-footer">
+        <button id="send-to-vscode" class="primary">复制并保存</button>
+        <div id="connection-status" class="connection-status">
+          <span class="status-dot"></span>
+          <span class="status-text">未连接</span>
+        </div>
       </div>
     </div>
   `;
-  
+
   document.body.appendChild(this.panel);
   DOMHelper.makeDraggable(this.panel);
-  
+
   const sendButton = document.getElementById('send-to-vscode');
   sendButton?.addEventListener('click', () => this.handleSendClick());
 
   const closeButton = document.getElementById('close-panel');
   closeButton?.addEventListener('click', () => this.togglePanel());
-  
+
+  // 折叠按钮逻辑
+  const toggleBtn = document.getElementById('toggle-prompts') as HTMLButtonElement | null;
+  const promptSection = document.getElementById('prompt-section');
+
+  if (toggleBtn && promptSection) {
+    toggleBtn.addEventListener('click', () => {
+      const collapsed = promptSection.classList.toggle('collapsed');
+      toggleBtn.textContent = collapsed ? '▸' : '▾';
+
+      // 如需记住用户选择，可以写入 local
+      chrome.storage.local.set({ promptsCollapsed: collapsed });
+    });
+
+    // 初始化时读取折叠状态
+    chrome.storage.local.get('promptsCollapsed', (res) => {
+      if (res.promptsCollapsed) {
+        promptSection.classList.add('collapsed');
+        toggleBtn.textContent = '▸';
+      }
+    });
+  }
+
   this.statusElement = document.getElementById('connection-status');
   this.promptButtons = document.getElementById('prompt-buttons');
-  
+
   // 加载提示词按钮
   this.loadPromptButtons();
 }
