@@ -209,3 +209,51 @@
   display: none;
 }
 
+.button-group {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.button-group button {
+  flex: 1;
+}
+
+button.secondary {
+  background: #3e3e3e;
+  color: #fff;
+  border: 1px solid #555;
+}
+
+button.secondary:hover {
+  background: #4e4e4e;
+}
+
+.notification {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 24px;
+  border-radius: 8px;
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 1000000;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  transition: all 0.3s ease;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from { transform: translate(-50%, -20px); opacity: 0; }
+  to { transform: translate(-50%, 0); opacity: 1; }
+}
+
+.notification.success {
+  background: #2ecc71;
+}
+
+.notification.error {
+  background: #e74c3c;
+}

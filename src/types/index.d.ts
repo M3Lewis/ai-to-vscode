@@ -4,6 +4,7 @@ interface MessageToVSCode {
   content: string;
   filename: string;
   savePath?: string;  // 新增：保存路径
+  type?: 'save' | 'patch'; // 新增：操作类型
 }
 
 interface MessageResponse {

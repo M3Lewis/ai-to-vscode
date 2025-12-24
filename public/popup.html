@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <meta charset="UTF-8">
   <title>AI to VSCode Bridge - 设置</title>
-  <link rel="stylesheet" href="popup.css">  <!-- 如果有的话 -->
+  <link rel="stylesheet" href="popup.css"> <!-- 如果有的话 -->
   <style>
     * {
       margin: 0;
@@ -492,8 +493,13 @@
     }
 
     @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
     }
 
     ::-webkit-scrollbar {
@@ -512,6 +518,94 @@
 
     ::-webkit-scrollbar-thumb:hover {
       background: #505050;
+    }
+
+    /* 路径记忆管理样式 */
+    .memory-section {
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 2px solid #3e3e3e;
+    }
+
+    .memory-item {
+      display: flex;
+      flex-direction: column;
+      padding: 10px;
+      background: #2d2d2d;
+      border: 1px solid #3e3e3e;
+      border-radius: 4px;
+      margin-bottom: 8px;
+    }
+
+    .memory-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 6px;
+    }
+
+    .memory-filename {
+      font-weight: 500;
+      color: #ffffff;
+      font-size: 13px;
+    }
+
+    .memory-path {
+      font-size: 12px;
+      color: #888888;
+      word-break: break-all;
+      margin-bottom: 8px;
+    }
+
+    .memory-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .memory-actions button {
+      padding: 4px 8px;
+      font-size: 11px;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+
+    .btn-delete {
+      background: #c94031;
+      color: white;
+      border: none;
+    }
+
+    .btn-delete:hover {
+      background: #a03428;
+    }
+
+    .btn-edit {
+      background: #3e3e3e;
+      color: white;
+      border: 1px solid #505050;
+    }
+
+    .btn-edit:hover {
+      background: #505050;
+    }
+
+    .memory-form {
+      background: #252526;
+      padding: 12px;
+      border-radius: 4px;
+      border: 1px solid #3e3e3e;
+      margin-bottom: 16px;
+    }
+
+    .memory-form h3 {
+      font-size: 14px;
+      margin-bottom: 10px;
+      color: #fff;
+    }
+
+    .memory-form input {
+      margin-bottom: 8px;
     }
   </style>
 </head>
@@ -537,11 +631,7 @@
   <div class="setting-group">
     <label>启用的网站：</label>
     <div class="add-url-form">
-      <input 
-        type="text" 
-        id="new-url-input" 
-        placeholder="输入网站域名（如：perplexity.ai）"
-      >
+      <input type="text" id="new-url-input" placeholder="输入网站域名（如：perplexity.ai）">
       <button id="add-url-btn">添加</button>
     </div>
     <div class="url-list" id="url-list">
@@ -555,34 +645,22 @@
     <div class="hint" style="margin-bottom: 8px;">
       为特定网站自定义COPY按钮的CSS选择器，用于适配不同AI对话界面
     </div>
-    
+
     <div class="selector-form">
-      <input 
-        type="text" 
-        id="config-hostname" 
-        placeholder="网站域名（如：perplexity.ai）"
-      >
-      <input 
-        type="text" 
-        id="config-selector" 
-        placeholder='COPY按钮选择器（如：button[aria-label="Copy"]）'
-      >
-      <input 
-        type="text" 
-        id="config-container" 
-        placeholder="回答容器选择器（可选，用于定位最新回答）"
-      >
-      
+      <input type="text" id="config-hostname" placeholder="网站域名（如：perplexity.ai）">
+      <input type="text" id="config-selector" placeholder='COPY按钮选择器（如：button[aria-label="Copy"]）'>
+      <input type="text" id="config-container" placeholder="回答容器选择器（可选，用于定位最新回答）">
+
       <button id="smart-find-btn">🔍 智能查找当前页面的COPY按钮</button>
       <button id="add-config-btn">添加配置</button>
     </div>
-    
+
     <div id="smart-find-modal" style="display: none;"></div>
-    
+
     <div class="url-list" id="config-list">
       <div class="empty-state">暂无自定义配置</div>
     </div>
-    
+
     <details>
       <summary>💡 如何找到CSS选择器？</summary>
       <div>
@@ -594,7 +672,7 @@
           <li>从列表中选择合适的按钮</li>
           <li>自动填充到配置中</li>
         </ol>
-        
+
         <p style="margin-bottom: 8px;"><strong>方式2: 手动查找</strong></p>
         <ol style="margin-left: 20px;">
           <li>在AI网站按 <strong>F12</strong> 打开开发者工具</li>
@@ -614,14 +692,14 @@
     </details>
   </div>
 
-<div class="setting-group">
-  <label>AI Studio 提示词管理（System Instructions）：</label>
-  <div class="hint" style="margin-bottom: 8px;">
-    选择本地 Markdown 文件作为提示词模板，文件名将作为提示词名称
-  </div>
-  
-  <!-- 整合后的长条框，包含两个按钮 -->
-  <div style="
+  <div class="setting-group">
+    <label>AI Studio 提示词管理（System Instructions）：</label>
+    <div class="hint" style="margin-bottom: 8px;">
+      选择本地 Markdown 文件作为提示词模板，文件名将作为提示词名称
+    </div>
+
+    <!-- 整合后的长条框，包含两个按钮 -->
+    <div style="
     display: flex;
     gap: 8px;
     align-items: center;
@@ -631,7 +709,7 @@
     border-radius: 4px;
     margin-bottom: 8px;
   " id="file-selector-wrapper">
-    <span id="file-name-display" style="
+      <span id="file-name-display" style="
       flex: 1;
       color: #888;
       font-size: 13px;
@@ -639,10 +717,8 @@
       text-overflow: ellipsis;
       white-space: nowrap;
     ">未选择文件</span>
-    
-    <button 
-      id="select-file-btn"
-      style="
+
+      <button id="select-file-btn" style="
         padding: 6px 12px;
         background: #4a4a4a;
         color: white;
@@ -652,16 +728,11 @@
         font-size: 12px;
         white-space: nowrap;
         transition: background 0.2s;
-      "
-      onmouseover="this.style.background='#5a5a5a'"
-      onmouseout="this.style.background='#4a4a4a'"
-    >
-      📁 选择文件
-    </button>
-    
-    <button 
-      id="add-prompt-btn" 
-      style="
+      " onmouseover="this.style.background='#5a5a5a'" onmouseout="this.style.background='#4a4a4a'">
+        📁 选择文件
+      </button>
+
+      <button id="add-prompt-btn" style="
         padding: 6px 12px;
         background: #007bff;
         color: white;
@@ -671,75 +742,90 @@
         font-size: 12px;
         white-space: nowrap;
         transition: background 0.2s;
-      "
-      onmouseover="this.style.background='#0056b3'"
-      onmouseout="this.style.background='#007bff'"
-    >
-      添加提示词
-    </button>
-  </div>
-  
-  <input 
-    type="file" 
-    id="prompt-file-input" 
-    accept=".md,.markdown,.txt"
-    style="display: none;"
-  >
-  
-  <div class="url-list" id="prompt-list" style="margin-top: 12px;">
-    <div class="empty-state">暂无提示词配置</div>
-  </div>
-  
-  <details>
-    <summary>💡 如何使用提示词功能？</summary>
-    <div>
-      <ol style="margin-left: 20px;">
-        <li>点击"📁 选择文件"，选择 Markdown 文件</li>
-        <li>文件名将自动作为提示词名称</li>
-        <li>点击"添加提示词"</li>
-        <li>保存设置后，悬浮窗会显示对应按钮</li>
-        <li>在 AI Studio 点击按钮快速切换提示词</li>
-      </ol>
-      <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #3e3e3e;">
-        <strong>提示：</strong><br>
-        • 支持 .md、.markdown、.txt 格式<br>
-        • 文件名会去掉扩展名作为显示名称<br>
-        • 仅在 AI Studio 网站显示此功能
-      </div>
+      " onmouseover="this.style.background='#0056b3'" onmouseout="this.style.background='#007bff'">
+        添加提示词
+      </button>
     </div>
-  </details>
-</div>
 
-<div class="setting-group">
-  <label>📂 文件保存路径：</label>
-  <div class="hint" style="margin-bottom: 8px;">
-    设置文件保存到 VS Code 项目中的相对路径（留空则保存到根目录）
+    <input type="file" id="prompt-file-input" accept=".md,.markdown,.txt" style="display: none;">
+
+    <div class="url-list" id="prompt-list" style="margin-top: 12px;">
+      <div class="empty-state">暂无提示词配置</div>
+    </div>
+
+    <details>
+      <summary>💡 如何使用提示词功能？</summary>
+      <div>
+        <ol style="margin-left: 20px;">
+          <li>点击"📁 选择文件"，选择 Markdown 文件</li>
+          <li>文件名将自动作为提示词名称</li>
+          <li>点击"添加提示词"</li>
+          <li>保存设置后，悬浮窗会显示对应按钮</li>
+          <li>在 AI Studio 点击按钮快速切换提示词</li>
+        </ol>
+        <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #3e3e3e;">
+          <strong>提示：</strong><br>
+          • 支持 .md、.markdown、.txt 格式<br>
+          • 文件名会去掉扩展名作为显示名称<br>
+          • 仅在 AI Studio 网站显示此功能
+        </div>
+      </div>
+    </details>
   </div>
-  
-  <input 
-    type="text" 
-    id="save-path" 
-    placeholder="例如：docs/ai-responses 或 output"
-    style="width: 100%;"
-  >
-  
-  <div style="font-size: 12px; color: #888; margin-top: 6px;">
-    💡 提示：路径会自动创建（如不存在），无需以 / 开头或结尾
+
+  <div class="setting-group">
+    <label>📂 文件保存路径：</label>
+    <div class="hint" style="margin-bottom: 8px;">
+      设置文件保存到 VS Code 项目中的相对路径（留空则保存到根目录）
+    </div>
+
+    <input type="text" id="save-path" placeholder="例如：docs/ai-responses 或 output" style="width: 100%;">
+
+    <div style="font-size: 12px; color: #888; margin-top: 6px;">
+      💡 提示：路径会自动创建（如不存在），无需以 / 开头或结尾
+    </div>
   </div>
-</div>
+
+  <div class="setting-group memory-section">
+    <label>📂 路径记忆管理：</label>
+    <div id="active-project-display"
+      style="font-size: 12px; color: #6c5ce7; margin-bottom: 8px; padding: 6px; background: #2d2d2d; border-radius: 4px; border: 1px solid #3e3e3e; display: none;">
+      当前项目: <span id="project-path-text">未连接</span>
+    </div>
+    <div class="hint" style="margin-bottom: 12px;">
+      管理插件记住的文件路径。路径记忆已按 VS Code 项目隔离。
+    </div>
+
+    <div class="memory-form">
+      <h3>➕ 手动添加/修改记忆</h3>
+      <input type="text" id="mem-filename" placeholder="文件名 (如: SKILL.md)">
+      <input type="text" id="mem-path" placeholder="所在目录 (如: docs/project)">
+      <button class="primary" id="add-mem-btn" style="width: 100%; padding: 8px; margin-top: 4px;">添加记忆</button>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+      <label style="margin: 0;">已记住的路径：</label>
+      <button class="btn-delete" id="clear-mem-btn"
+        style="padding: 4px 10px; font-size: 12px; border-radius: 4px;">清空全部</button>
+    </div>
+
+    <div id="memory-list" class="url-list" style="max-height: 300px;">
+      <div class="empty-state">暂无路径记忆</div>
+    </div>
+  </div>
 
 
   <div class="button-group">
-  <button class="primary" id="save-settings">💾 保存设置</button>
-  <button class="secondary" id="reset-defaults">🔄 恢复默认</button>
-</div>
+    <button class="primary" id="save-settings">💾 保存设置</button>
+    <button class="secondary" id="reset-defaults">🔄 恢复默认</button>
+  </div>
 
-<div class="button-group" style="margin-bottom: 16px;">
-  <button class="tertiary" id="export-config">📤 导出配置</button>
-  <button class="tertiary" id="import-config">📥 导入配置</button>
-</div>
+  <div class="button-group" style="margin-bottom: 16px;">
+    <button class="tertiary" id="export-config">📤 导出配置</button>
+    <button class="tertiary" id="import-config">📥 导入配置</button>
+  </div>
 
-<div style="height: 24px;"></div>
+  <div style="height: 24px;"></div>
 
   <input type="file" id="import-file-input" accept=".json">
 
@@ -761,4 +847,5 @@
 
   <script src="popup.js"></script>
 </body>
+
 </html>

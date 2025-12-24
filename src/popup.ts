@@ -66,13 +66,13 @@ class PopupManager {
   private importFileInput: HTMLInputElement | null = null;
   private smartFindButton: HTMLButtonElement | null = null;
   private statusDiv: HTMLElement | null = null;
-  
+
   private configList: HTMLElement | null = null;
   private configHostnameInput: HTMLInputElement | null = null;
   private configSelectorInput: HTMLInputElement | null = null;
   private configContainerInput: HTMLInputElement | null = null;
   private addConfigButton: HTMLButtonElement | null = null;
-  
+
   // 提示词相关元素
   private promptPathInput: HTMLInputElement | null = null;
   private selectFileButton: HTMLButtonElement | null = null;
@@ -83,7 +83,16 @@ class PopupManager {
   private currentFileContent: string = '';
 
   private savePathInput: HTMLInputElement | null = null;
-  
+
+  // 路径记忆相关元素
+  private memoryList: HTMLElement | null = null;
+  private memFilenameInput: HTMLInputElement | null = null;
+  private memPathInput: HTMLInputElement | null = null;
+  private addMemButton: HTMLButtonElement | null = null;
+  private clearMemButton: HTMLButtonElement | null = null;
+  private pathMemory: Record<string, string> = {};
+  private activeProjectRoot: string = 'default';
+
   private currentSettings: Settings = {
     port: 8765,
     enabledUrls: [...DEFAULT_URLS],
@@ -99,6 +108,7 @@ class PopupManager {
     this.loadSettings();
     this.setupEventListeners();
     this.setupAutoSave();
+    this.loadPathMemoryData(); // 加载路径记忆数据
   }
 
   private initElements(): void {
@@ -114,13 +124,13 @@ class PopupManager {
     this.importFileInput = document.getElementById('import-file-input') as HTMLInputElement;
     this.smartFindButton = document.getElementById('smart-find-btn') as HTMLButtonElement;
     this.statusDiv = document.getElementById('status');
-    
+
     this.configList = document.getElementById('config-list');
     this.configHostnameInput = document.getElementById('config-hostname') as HTMLInputElement;
     this.configSelectorInput = document.getElementById('config-selector') as HTMLInputElement;
     this.configContainerInput = document.getElementById('config-container') as HTMLInputElement;
     this.addConfigButton = document.getElementById('add-config-btn') as HTMLButtonElement;
-    
+
     // 初始化提示词相关元素
     this.promptPathInput = document.getElementById('prompt-path') as HTMLInputElement;
     this.selectFileButton = document.getElementById('select-file-btn') as HTMLButtonElement;
@@ -134,126 +144,133 @@ class PopupManager {
     this.fileNameDisplay = document.getElementById('file-name-display');
 
     this.savePathInput = document.getElementById('save-path') as HTMLInputElement;
+
+    // 初始化路径记忆相关元素
+    this.memoryList = document.getElementById('memory-list');
+    this.memFilenameInput = document.getElementById('mem-filename') as HTMLInputElement;
+    this.memPathInput = document.getElementById('mem-path') as HTMLInputElement;
+    this.addMemButton = document.getElementById('add-mem-btn') as HTMLButtonElement;
+    this.clearMemButton = document.getElementById('clear-mem-btn') as HTMLButtonElement;
   }
 
   private async loadSettings(): Promise<void> {
-  // 先加载正式配置，使用单一 key "settings"
-  const result = await chrome.storage.sync.get('settings');
-  let settings: Settings;
-  if (result.settings) {
-    settings = result.settings as Settings;
-  } else {
-    // 回退到旧格式（兼容性）
-    const oldSettings = await chrome.storage.sync.get({
-      port: 8765,
-      enabledUrls: [...DEFAULT_URLS],
-      showOnAllSites: false,
-      siteConfigs: [],
-      promptFiles: []
-    }) as Settings;
-    settings = oldSettings;
-  }
-
-  // 从 local 加载提示词文件（分离存储）
-  const promptResult = await chrome.storage.local.get('promptFiles');
-  const promptFiles: PromptFile[] = promptResult.promptFiles || [];
-  settings.promptFiles = promptFiles;
-
-  // 尝试加载草稿
-  const draft = await chrome.storage.local.get('draftSettings');
-  
-  if (draft.draftSettings) {
-    const draftData: DraftSettings = draft.draftSettings;
-    
-    // 检查草稿是否在5分钟内（避免加载过期草稿）
-    const fiveMinutes = 5 * 60 * 1000;
-    if (draftData.timestamp && Date.now() - draftData.timestamp < fiveMinutes) {
-      // 使用草稿覆盖设置
-      this.currentSettings = {
-        port: draftData.port ?? settings.port,
-        enabledUrls: draftData.enabledUrls ?? settings.enabledUrls,
-        showOnAllSites: draftData.showOnAllSites ?? settings.showOnAllSites,
-        siteConfigs: draftData.siteConfigs ?? settings.siteConfigs,
-        promptFiles: draftData.promptFiles ?? settings.promptFiles
-      };
-      
-      this.hasDraft = true;
-      this.showDraftIndicator();
+    // 先加载正式配置，使用单一 key "settings"
+    const result = await chrome.storage.sync.get('settings');
+    let settings: Settings;
+    if (result.settings) {
+      settings = result.settings as Settings;
     } else {
-      // 草稿过期，使用正式配置
-      this.currentSettings = settings;
-      await chrome.storage.local.remove('draftSettings');
+      // 回退到旧格式（兼容性）
+      const oldSettings = await chrome.storage.sync.get({
+        port: 8765,
+        enabledUrls: [...DEFAULT_URLS],
+        showOnAllSites: false,
+        siteConfigs: [],
+        promptFiles: []
+      }) as Settings;
+      settings = oldSettings;
     }
-  } else {
-    this.currentSettings = settings;
-  }
 
-  if (this.savePathInput) {
-    this.savePathInput.value = this.currentSettings.savePath || '';
+    // 从 local 加载提示词文件（分离存储）
+    const promptResult = await chrome.storage.local.get('promptFiles');
+    const promptFiles: PromptFile[] = promptResult.promptFiles || [];
+    settings.promptFiles = promptFiles;
+
+    // 尝试加载草稿
+    const draft = await chrome.storage.local.get('draftSettings');
+
+    if (draft.draftSettings) {
+      const draftData: DraftSettings = draft.draftSettings;
+
+      // 检查草稿是否在5分钟内（避免加载过期草稿）
+      const fiveMinutes = 5 * 60 * 1000;
+      if (draftData.timestamp && Date.now() - draftData.timestamp < fiveMinutes) {
+        // 使用草稿覆盖设置
+        this.currentSettings = {
+          port: draftData.port ?? settings.port,
+          enabledUrls: draftData.enabledUrls ?? settings.enabledUrls,
+          showOnAllSites: draftData.showOnAllSites ?? settings.showOnAllSites,
+          siteConfigs: draftData.siteConfigs ?? settings.siteConfigs,
+          promptFiles: draftData.promptFiles ?? settings.promptFiles
+        };
+
+        this.hasDraft = true;
+        this.showDraftIndicator();
+      } else {
+        // 草稿过期，使用正式配置
+        this.currentSettings = settings;
+        await chrome.storage.local.remove('draftSettings');
+      }
+    } else {
+      this.currentSettings = settings;
+    }
+
+    if (this.savePathInput) {
+      this.savePathInput.value = this.currentSettings.savePath || '';
+    }
+    // 更新UI
+    if (this.portInput) this.portInput.value = this.currentSettings.port.toString();
+    if (this.showOnAllSitesCheckbox) this.showOnAllSitesCheckbox.checked = this.currentSettings.showOnAllSites;
+
+
+    this.renderUrlList();
+    this.renderConfigList();
+    this.renderPromptList();
   }
-  // 更新UI
-  if (this.portInput) this.portInput.value = this.currentSettings.port.toString();
-  if (this.showOnAllSitesCheckbox) this.showOnAllSitesCheckbox.checked = this.currentSettings.showOnAllSites;
-  
-  
-  this.renderUrlList();
-  this.renderConfigList();
-  this.renderPromptList();
-}
 
   // 新增：显示草稿指示器
-private showDraftIndicator(): void {
-  if (this.saveButton) {
-    this.saveButton.textContent = '💾 保存设置 (有未保存的更改)';
-    this.saveButton.style.background = '#e67e22';
-  }
-}
-
-// 新增：隐藏草稿指示器
-private hideDraftIndicator(): void {
-  if (this.saveButton) {
-    this.saveButton.textContent = '💾 保存设置';
-    this.saveButton.style.background = '#007acc';
-  }
-  this.hasDraft = false;
-}
-
-// 新增：设置自动保存
-private setupAutoSave(): void {
-  // 监听所有可能修改配置的输入
-  this.portInput?.addEventListener('input', () => this.scheduleAutoSave());
-  this.showOnAllSitesCheckbox?.addEventListener('change', () => this.scheduleAutoSave());
-}
-
-// 新增：延迟自动保存（防止频繁保存）
-private scheduleAutoSave(): void {
-  if (this.autoSaveTimer) {
-    clearTimeout(this.autoSaveTimer);
+  private showDraftIndicator(): void {
+    if (this.saveButton) {
+      this.saveButton.textContent = '💾 保存设置 (有未保存的更改)';
+      this.saveButton.style.background = '#e67e22';
+    }
   }
 
-  this.autoSaveTimer = window.setTimeout(() => {
-    this.saveDraft();
-  }, 500); // 500ms后保存草稿
-}
-
-// 新增：保存草稿
-private async saveDraft(): Promise<void> {
-  const draft: DraftSettings = {
-    port: parseInt(this.portInput?.value || '8765'),
-    enabledUrls: this.currentSettings.enabledUrls,
-    showOnAllSites: this.showOnAllSitesCheckbox?.checked || false,
-    siteConfigs: this.currentSettings.siteConfigs,
-    promptFiles: this.currentSettings.promptFiles,
-    timestamp: Date.now()
-  };
-
-  await chrome.storage.local.set({ draftSettings: draft });
-  
-  if (!this.hasDraft) {
-    this.hasDraft = true;
-    this.showDraftIndicator();
+  // 新增：隐藏草稿指示器
+  private hideDraftIndicator(): void {
+    if (this.saveButton) {
+      this.saveButton.textContent = '💾 保存设置';
+      this.saveButton.style.background = '#007acc';
+    }
+    this.hasDraft = false;
   }
-}
+
+  // 新增：设置自动保存
+  private setupAutoSave(): void {
+    // 监听所有可能修改配置的输入
+    this.portInput?.addEventListener('input', () => this.scheduleAutoSave());
+    this.showOnAllSitesCheckbox?.addEventListener('change', () => this.scheduleAutoSave());
+  }
+
+  // 新增：延迟自动保存（防止频繁保存）
+  private scheduleAutoSave(): void {
+    if (this.autoSaveTimer) {
+      clearTimeout(this.autoSaveTimer);
+    }
+
+    this.autoSaveTimer = window.setTimeout(() => {
+      this.saveDraft();
+    }, 500); // 500ms后保存草稿
+  }
+
+  // 新增：保存草稿
+  private async saveDraft(): Promise<void> {
+    const draft: DraftSettings = {
+      port: parseInt(this.portInput?.value || '8765'),
+      enabledUrls: this.currentSettings.enabledUrls,
+      showOnAllSites: this.showOnAllSitesCheckbox?.checked || false,
+      siteConfigs: this.currentSettings.siteConfigs,
+      promptFiles: this.currentSettings.promptFiles,
+      timestamp: Date.now()
+    };
+
+    await chrome.storage.local.set({ draftSettings: draft });
+
+    if (!this.hasDraft) {
+      this.hasDraft = true;
+      this.showDraftIndicator();
+    }
+  }
 
   private renderUrlList(): void {
     if (!this.urlList) return;
@@ -316,153 +333,156 @@ private async saveDraft(): Promise<void> {
   }
 
   private setupEventListeners(): void {
-  // 基本功能
-  this.saveButton?.addEventListener('click', () => this.saveSettings());
-  this.resetButton?.addEventListener('click', () => this.resetToDefaults());
-  this.addUrlButton?.addEventListener('click', () => this.addUrl());
-  this.addConfigButton?.addEventListener('click', () => this.addConfig());
-  this.exportButton?.addEventListener('click', () => this.exportConfig());
-  this.importButton?.addEventListener('click', () => this.importFileInput?.click());
-  this.smartFindButton?.addEventListener('click', () => this.smartFindCopyButtons());
-  this.importFileInput?.addEventListener('change', (e) => this.handleImportFile(e));
-  this.savePathInput?.addEventListener('input', () => this.saveDraft());
+    // 基本功能
+    this.saveButton?.addEventListener('click', () => this.saveSettings());
+    this.resetButton?.addEventListener('click', () => this.resetToDefaults());
+    this.addUrlButton?.addEventListener('click', () => this.addUrl());
+    this.addConfigButton?.addEventListener('click', () => this.addConfig());
+    this.exportButton?.addEventListener('click', () => this.exportConfig());
+    this.importButton?.addEventListener('click', () => this.importFileInput?.click());
+    this.smartFindButton?.addEventListener('click', () => this.smartFindCopyButtons());
+    this.importFileInput?.addEventListener('change', (e) => this.handleImportFile(e));
+    this.savePathInput?.addEventListener('input', () => this.saveDraft());
 
-  // URL 输入回车快捷键
-  this.newUrlInput?.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') this.addUrl();
-  });
+    // URL 输入回车快捷键
+    this.newUrlInput?.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') this.addUrl();
+    });
 
-  // 配置输入 Ctrl+Enter 快捷键
-  this.configSelectorInput?.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter' && e.ctrlKey) this.addConfig();
-  });
+    // 配置输入 Ctrl+Enter 快捷键
+    this.configSelectorInput?.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' && e.ctrlKey) this.addConfig();
+    });
 
-  // ✅ 提示词相关（只保留一次）
-  this.selectFileButton?.addEventListener('click', () => this.promptFileInput?.click());
-  this.promptFileInput?.addEventListener('change', (e) => this.handleFileSelect(e));
-  this.addPromptButton?.addEventListener('click', () => this.addPrompt());
+    // ✅ 提示词相关（只保留一次）
+    this.selectFileButton?.addEventListener('click', () => this.promptFileInput?.click());
+    this.promptFileInput?.addEventListener('change', (e) => this.handleFileSelect(e));
+    this.addPromptButton?.addEventListener('click', () => this.addPrompt());
 
-}
+    // 路径记忆相关
+    this.addMemButton?.addEventListener('click', () => this.addMemory());
+    this.clearMemButton?.addEventListener('click', () => this.clearAllMemory());
+  }
 
-private async smartFindCopyButtons(): Promise<void> {
-  try {
-    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-    const activeTab = tabs[0];
-    
-    if (!activeTab || !activeTab.id) {
-      this.showStatus('无法获取当前标签页', 'error');
-      return;
-    }
+  private async smartFindCopyButtons(): Promise<void> {
+    try {
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      const activeTab = tabs[0];
 
-    // 自动填充域名
-    if (activeTab.url) {
-      try {
-        const url = new URL(activeTab.url);
-        if (this.configHostnameInput) {
-          this.configHostnameInput.value = url.hostname;
-        }
-      } catch (e) {
-        console.error('解析URL失败:', e);
+      if (!activeTab || !activeTab.id) {
+        this.showStatus('无法获取当前标签页', 'error');
+        return;
       }
-    }
 
-    this.showScanningModal();
+      // 自动填充域名
+      if (activeTab.url) {
+        try {
+          const url = new URL(activeTab.url);
+          if (this.configHostnameInput) {
+            this.configHostnameInput.value = url.hostname;
+          }
+        } catch (e) {
+          console.error('解析URL失败:', e);
+        }
+      }
 
-    // 注入脚本查找按钮
-    const results = await chrome.scripting.executeScript({
-      target: { tabId: activeTab.id },
-      func: () => {
-        // === 这段代码会在目标页面中执行 ===
-        // 在这里重新定义，避免与外部冲突
-        type CandidateResult = {
-          selector: string;
-          label: string;
-          ariaLabel: string;
-          text: string;
-          score: number;
-        };
+      this.showScanningModal();
 
-        const candidates: CandidateResult[] = [];
-        const buttons = document.querySelectorAll('button');
+      // 注入脚本查找按钮
+      const results = await chrome.scripting.executeScript({
+        target: { tabId: activeTab.id },
+        func: () => {
+          // === 这段代码会在目标页面中执行 ===
+          // 在这里重新定义，避免与外部冲突
+          type CandidateResult = {
+            selector: string;
+            label: string;
+            ariaLabel: string;
+            text: string;
+            score: number;
+          };
 
-        buttons.forEach((button) => {
-          const text = button.textContent?.toLowerCase().trim() || '';
-          const ariaLabel = button.getAttribute('aria-label')?.toLowerCase() || '';
-          const title = button.getAttribute('title')?.toLowerCase() || '';
-          const className = button.className.toLowerCase();
-          
-          let score = 0;
-          
-          // 评分规则
-          if (text.includes('copy') || text.includes('复制')) score += 10;
-          if (ariaLabel.includes('copy') || ariaLabel.includes('复制')) score += 10;
-          if (title.includes('copy') || title.includes('复制')) score += 5;
-          if (className.includes('copy')) score += 5;
-          
-          const svg = button.querySelector('svg');
-          if (svg) score += 2;
-          
-          // 只保留相关度足够高的按钮
-          if (score >= 5) {
-            let selector = '';
-            const ariaLabelAttr = button.getAttribute('aria-label');
-            
-            // 生成选择器
-            if (ariaLabelAttr) {
-              // 转义引号
-              const escapedLabel = ariaLabelAttr.replace(/"/g, '\\"');
-              selector = `button[aria-label="${escapedLabel}"]`;
-            } else if (button.id) {
-              selector = `button#${button.id}`;
-            } else if (button.className && button.className.trim()) {
-              const classes = button.className.trim().split(/\s+/).slice(0, 2);
-              if (classes.length > 0) {
-                selector = `button.${classes.join('.')}`;
+          const candidates: CandidateResult[] = [];
+          const buttons = document.querySelectorAll('button');
+
+          buttons.forEach((button) => {
+            const text = button.textContent?.toLowerCase().trim() || '';
+            const ariaLabel = button.getAttribute('aria-label')?.toLowerCase() || '';
+            const title = button.getAttribute('title')?.toLowerCase() || '';
+            const className = button.className.toLowerCase();
+
+            let score = 0;
+
+            // 评分规则
+            if (text.includes('copy') || text.includes('复制')) score += 10;
+            if (ariaLabel.includes('copy') || ariaLabel.includes('复制')) score += 10;
+            if (title.includes('copy') || title.includes('复制')) score += 5;
+            if (className.includes('copy')) score += 5;
+
+            const svg = button.querySelector('svg');
+            if (svg) score += 2;
+
+            // 只保留相关度足够高的按钮
+            if (score >= 5) {
+              let selector = '';
+              const ariaLabelAttr = button.getAttribute('aria-label');
+
+              // 生成选择器
+              if (ariaLabelAttr) {
+                // 转义引号
+                const escapedLabel = ariaLabelAttr.replace(/"/g, '\\"');
+                selector = `button[aria-label="${escapedLabel}"]`;
+              } else if (button.id) {
+                selector = `button#${button.id}`;
+              } else if (button.className && button.className.trim()) {
+                const classes = button.className.trim().split(/\s+/).slice(0, 2);
+                if (classes.length > 0) {
+                  selector = `button.${classes.join('.')}`;
+                } else {
+                  selector = 'button';
+                }
               } else {
                 selector = 'button';
               }
-            } else {
-              selector = 'button';
+
+              candidates.push({
+                selector: selector,
+                label: text || ariaLabel || '(无标签)',
+                ariaLabel: ariaLabelAttr || '',
+                text: text,
+                score: score
+              });
             }
+          });
 
-            candidates.push({
-              selector: selector,
-              label: text || ariaLabel || '(无标签)',
-              ariaLabel: ariaLabelAttr || '',
-              text: text,
-              score: score
-            });
-          }
-        });
+          // 按分数排序
+          candidates.sort((a, b) => b.score - a.score);
 
-        // 按分数排序
-        candidates.sort((a, b) => b.score - a.score);
-        
-        // 返回前10个
-        return candidates.slice(0, 10);
+          // 返回前10个
+          return candidates.slice(0, 10);
+        }
+      });
+
+      const candidates: ButtonCandidate[] = results[0]?.result || [];
+
+      if (candidates.length === 0) {
+        this.showEmptyResultModal();
+      } else {
+        this.showCandidatesModal(candidates);
       }
-    });
 
-    const candidates: ButtonCandidate[] = results[0]?.result || [];
+    } catch (error) {
+      console.error('智能查找失败:', error);
 
-    if (candidates.length === 0) {
-      this.showEmptyResultModal();
-    } else {
-      this.showCandidatesModal(candidates);
+      let errorMsg = '智能查找失败';
+      if (error instanceof Error) {
+        errorMsg += ': ' + error.message;
+      }
+
+      this.showStatus(errorMsg, 'error');
+      this.closeModal();
     }
-
-  } catch (error) {
-    console.error('智能查找失败:', error);
-    
-    let errorMsg = '智能查找失败';
-    if (error instanceof Error) {
-      errorMsg += ': ' + error.message;
-    }
-    
-    this.showStatus(errorMsg, 'error');
-    this.closeModal();
   }
-}
 
 
   private showScanningModal(): void {
@@ -483,9 +503,9 @@ private async smartFindCopyButtons(): Promise<void> {
         </div>
       </div>
     `;
-    
+
     modal.style.display = 'flex';
-    
+
     document.getElementById('modal-close')?.addEventListener('click', () => {
       this.closeModal();
     });
@@ -515,9 +535,9 @@ private async smartFindCopyButtons(): Promise<void> {
         </div>
       </div>
     `;
-    
+
     modal.style.display = 'flex';
-    
+
     document.getElementById('modal-close')?.addEventListener('click', () => this.closeModal());
     document.getElementById('modal-cancel')?.addEventListener('click', () => this.closeModal());
   }
@@ -555,13 +575,13 @@ private async smartFindCopyButtons(): Promise<void> {
         </div>
       </div>
     `;
-    
+
     modal.style.display = 'flex';
-    
+
     document.getElementById('modal-close')?.addEventListener('click', () => this.closeModal());
     document.getElementById('modal-cancel')?.addEventListener('click', () => this.closeModal());
     document.getElementById('modal-confirm')?.addEventListener('click', () => this.confirmSelection());
-    
+
     const candidateElements = modal.querySelectorAll('.button-candidate');
     candidateElements.forEach((el) => {
       el.addEventListener('click', (e) => {
@@ -573,28 +593,28 @@ private async smartFindCopyButtons(): Promise<void> {
 
   private selectCandidate(index: number, candidates: ButtonCandidate[]): void {
     this.selectedCandidate = candidates[index];
-    
+
     const modal = document.getElementById('smart-find-modal');
     if (!modal) return;
-    
+
     modal.querySelectorAll('.button-candidate').forEach(el => {
       el.classList.remove('selected');
     });
-    
+
     const selected = modal.querySelector(`[data-index="${index}"]`);
     selected?.classList.add('selected');
-    
+
     const confirmBtn = document.getElementById('modal-confirm') as HTMLButtonElement;
     if (confirmBtn) confirmBtn.disabled = false;
   }
 
   private confirmSelection(): void {
     if (!this.selectedCandidate) return;
-    
+
     if (this.configSelectorInput) {
       this.configSelectorInput.value = this.selectedCandidate.selector;
     }
-    
+
     this.showStatus(`✅ 已选择: ${this.selectedCandidate.selector}`, 'success');
     this.closeModal();
     this.selectedCandidate = null;
@@ -628,11 +648,11 @@ private async smartFindCopyButtons(): Promise<void> {
 
     this.currentSettings.enabledUrls.push(url);
     this.renderUrlList();
-    
+
     if (this.newUrlInput) {
       this.newUrlInput.value = '';
     }
-    
+
     this.showStatus('✅ 已添加，请点击保存设置', 'success');
   }
 
@@ -683,99 +703,99 @@ private async smartFindCopyButtons(): Promise<void> {
     this.showStatus('✅ 已删除，请点击保存设置', 'success');
   }
 
- private async saveSettings(): Promise<void> {
- const saveBtn = document.getElementById('save-settings') as HTMLButtonElement;
- 
- if (!saveBtn) return;
+  private async saveSettings(): Promise<void> {
+    const saveBtn = document.getElementById('save-settings') as HTMLButtonElement;
 
- try {
-   // 保存设置逻辑
-   this.currentSettings.savePath = this.savePathInput?.value.trim() || '';
- 
-   // 分离存储：提示词文件保存到 local
-   const promptFiles = this.currentSettings.promptFiles || [];
-   await chrome.storage.local.set({ promptFiles });
-   
-   // 创建不包含 promptFiles 的配置对象用于 sync 存储
-   const settingsForSync: Settings = {
-     ...this.currentSettings,
-     promptFiles: undefined
-   };
-   // 删除 promptFiles 字段，避免占用空间
-   delete settingsForSync.promptFiles;
- 
-   // 调试：计算配置大小
-   const settingsJson = JSON.stringify(settingsForSync);
-   const sizeInBytes = new Blob([settingsJson]).size;
-   console.log(`保存配置到 sync，大小: ${sizeInBytes} 字节 (${(sizeInBytes / 1024).toFixed(2)} KB)`);
-   if (sizeInBytes > 8192) {
-     console.warn('配置大小超过 8KB，可能超出 chrome.storage.sync 单项限制');
-   }
-   // 详细分析各部分大小
-   const analysis: Record<string, number> = {};
-   if (promptFiles.length > 0) {
-     let totalPromptSize = 0;
-     promptFiles.forEach((p, i) => {
-       const promptSize = new Blob([p.path]).size;
-       totalPromptSize += promptSize;
-       analysis[`promptFiles[${i}].path`] = promptSize;
-     });
-     analysis['promptFiles.total'] = totalPromptSize;
-   }
-   analysis['enabledUrls'] = new Blob([JSON.stringify(this.currentSettings.enabledUrls)]).size;
-   analysis['siteConfigs'] = new Blob([JSON.stringify(this.currentSettings.siteConfigs)]).size;
-   analysis['other'] = sizeInBytes - (analysis['promptFiles.total'] || 0) - analysis['enabledUrls'] - analysis['siteConfigs'];
-   console.log('配置大小分析:', analysis);
- 
-   // 使用单一 key "settings" 存储整个配置对象（不含 promptFiles），避免超出存储限制
-   await new Promise<void>((resolve, reject) => {
-     chrome.storage.sync.set(
-       { settings: settingsForSync },
-       () => {
-         const err = chrome.runtime.lastError;
-         if (err) {
-           console.error('chrome.storage.sync.set error:', err);
-           reject(err);
-         } else {
-           resolve();
-         }
-       }
-     );
-   });
-   
-   // ✅ 保存成功，恢复按钮默认状态
-   saveBtn.textContent = '💾 保存设置';
-   saveBtn.className = 'primary';  // 恢复蓝色样式
-   saveBtn.disabled = false;
-   
-   this.showStatus('✅ 设置已保存', 'success');
-   
-   // 清除草稿
-   await chrome.storage.local.remove('draftSettings');
-   
- } catch (error) {
-   console.error('保存设置失败:', error);
-   // 提取可读的错误消息
-   let errorMessage = '未知错误';
-   if (error instanceof Error) {
-     errorMessage = error.message;
-   } else if (error && typeof error === 'object') {
-     // 处理 chrome.runtime.lastError 对象
-     if ('message' in error && typeof error.message === 'string') {
-       errorMessage = error.message;
-     } else {
-       errorMessage = JSON.stringify(error);
-     }
-   } else {
-     errorMessage = String(error);
-   }
-   this.showStatus(`❌ 保存失败: ${errorMessage}`, 'error');
-   
-   // 出错也恢复按钮状态
-   saveBtn.textContent = '💾 保存设置';
-   saveBtn.className = 'primary';
- }
-}
+    if (!saveBtn) return;
+
+    try {
+      // 保存设置逻辑
+      this.currentSettings.savePath = this.savePathInput?.value.trim() || '';
+
+      // 分离存储：提示词文件保存到 local
+      const promptFiles = this.currentSettings.promptFiles || [];
+      await chrome.storage.local.set({ promptFiles });
+
+      // 创建不包含 promptFiles 的配置对象用于 sync 存储
+      const settingsForSync: Settings = {
+        ...this.currentSettings,
+        promptFiles: undefined
+      };
+      // 删除 promptFiles 字段，避免占用空间
+      delete settingsForSync.promptFiles;
+
+      // 调试：计算配置大小
+      const settingsJson = JSON.stringify(settingsForSync);
+      const sizeInBytes = new Blob([settingsJson]).size;
+      console.log(`保存配置到 sync，大小: ${sizeInBytes} 字节 (${(sizeInBytes / 1024).toFixed(2)} KB)`);
+      if (sizeInBytes > 8192) {
+        console.warn('配置大小超过 8KB，可能超出 chrome.storage.sync 单项限制');
+      }
+      // 详细分析各部分大小
+      const analysis: Record<string, number> = {};
+      if (promptFiles.length > 0) {
+        let totalPromptSize = 0;
+        promptFiles.forEach((p, i) => {
+          const promptSize = new Blob([p.path]).size;
+          totalPromptSize += promptSize;
+          analysis[`promptFiles[${i}].path`] = promptSize;
+        });
+        analysis['promptFiles.total'] = totalPromptSize;
+      }
+      analysis['enabledUrls'] = new Blob([JSON.stringify(this.currentSettings.enabledUrls)]).size;
+      analysis['siteConfigs'] = new Blob([JSON.stringify(this.currentSettings.siteConfigs)]).size;
+      analysis['other'] = sizeInBytes - (analysis['promptFiles.total'] || 0) - analysis['enabledUrls'] - analysis['siteConfigs'];
+      console.log('配置大小分析:', analysis);
+
+      // 使用单一 key "settings" 存储整个配置对象（不含 promptFiles），避免超出存储限制
+      await new Promise<void>((resolve, reject) => {
+        chrome.storage.sync.set(
+          { settings: settingsForSync },
+          () => {
+            const err = chrome.runtime.lastError;
+            if (err) {
+              console.error('chrome.storage.sync.set error:', err);
+              reject(err);
+            } else {
+              resolve();
+            }
+          }
+        );
+      });
+
+      // ✅ 保存成功，恢复按钮默认状态
+      saveBtn.textContent = '💾 保存设置';
+      saveBtn.className = 'primary';  // 恢复蓝色样式
+      saveBtn.disabled = false;
+
+      this.showStatus('✅ 设置已保存', 'success');
+
+      // 清除草稿
+      await chrome.storage.local.remove('draftSettings');
+
+    } catch (error) {
+      console.error('保存设置失败:', error);
+      // 提取可读的错误消息
+      let errorMessage = '未知错误';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (error && typeof error === 'object') {
+        // 处理 chrome.runtime.lastError 对象
+        if ('message' in error && typeof error.message === 'string') {
+          errorMessage = error.message;
+        } else {
+          errorMessage = JSON.stringify(error);
+        }
+      } else {
+        errorMessage = String(error);
+      }
+      this.showStatus(`❌ 保存失败: ${errorMessage}`, 'error');
+
+      // 出错也恢复按钮状态
+      saveBtn.textContent = '💾 保存设置';
+      saveBtn.className = 'primary';
+    }
+  }
 
 
   private async resetToDefaults(): Promise<void> {
@@ -793,8 +813,8 @@ private async smartFindCopyButtons(): Promise<void> {
 
     if (this.portInput) this.portInput.value = '8765';
     if (this.showOnAllSitesCheckbox) this.showOnAllSitesCheckbox.checked = false;
-    
-    
+
+
     this.renderUrlList();
     this.renderConfigList();
     this.renderPromptList();
@@ -804,7 +824,7 @@ private async smartFindCopyButtons(): Promise<void> {
   private async exportConfig(): Promise<void> {
     try {
       const data = await chrome.storage.sync.get(null);
-      
+
       const exportData = {
         version: '1.0.0',
         timestamp: new Date().toISOString(),
@@ -815,14 +835,14 @@ private async smartFindCopyButtons(): Promise<void> {
       const json = JSON.stringify(exportData, null, 2);
       const blob = new Blob([json], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
-      
+
       const a = document.createElement('a');
       a.href = url;
       a.download = `ai-vscode-bridge-config-${Date.now()}.json`;
       a.click();
-      
+
       URL.revokeObjectURL(url);
-      
+
       this.showStatus('✅ 配置已导出', 'success');
     } catch (error) {
       console.error('导出失败:', error);
@@ -833,7 +853,7 @@ private async smartFindCopyButtons(): Promise<void> {
   private async handleImportFile(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
-    
+
     if (!file) return;
 
     try {
@@ -851,7 +871,7 @@ private async smartFindCopyButtons(): Promise<void> {
 
       await chrome.storage.sync.set(importData.data);
       await this.loadSettings();
-      
+
       this.showStatus('✅ 配置已导入，请刷新网页使配置生效', 'success');
     } catch (error) {
       console.error('导入失败:', error);
@@ -863,11 +883,11 @@ private async smartFindCopyButtons(): Promise<void> {
 
   private showStatus(message: string, type: 'success' | 'error'): void {
     if (!this.statusDiv) return;
-    
+
     this.statusDiv.textContent = message;
     this.statusDiv.className = type;
     this.statusDiv.style.display = 'block';
-    
+
     setTimeout(() => {
       if (this.statusDiv) {
         this.statusDiv.style.display = 'none';
@@ -883,17 +903,17 @@ private async smartFindCopyButtons(): Promise<void> {
 
   // 提示词管理相关方法
   private renderPromptList(): void {
-  if (!this.promptList) return;
+    if (!this.promptList) return;
 
-  const prompts = this.currentSettings.promptFiles || [];
+    const prompts = this.currentSettings.promptFiles || [];
 
-  if (prompts.length === 0) {
-    this.promptList.innerHTML = '<div class="empty-state">暂无提示词配置</div>';
-    return;
-  }
+    if (prompts.length === 0) {
+      this.promptList.innerHTML = '<div class="empty-state">暂无提示词配置</div>';
+      return;
+    }
 
-  this.promptList.innerHTML = prompts
-    .map((prompt, index) => `
+    this.promptList.innerHTML = prompts
+      .map((prompt, index) => `
       <div class="url-item">
         <div style="flex: 1;">
           <div style="font-weight: 500; color: #fff;">📝 ${this.escapeHtml(prompt.name)}</div>
@@ -926,135 +946,135 @@ private async smartFindCopyButtons(): Promise<void> {
         </div>
       </div>
     `)
-    .join('');
+      .join('');
 
-  // 绑定删除按钮事件
-  this.promptList.querySelectorAll('.danger').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const index = parseInt((e.target as HTMLElement).getAttribute('data-index') || '0');
-      this.removePrompt(index);
+    // 绑定删除按钮事件
+    this.promptList.querySelectorAll('.danger').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const index = parseInt((e.target as HTMLElement).getAttribute('data-index') || '0');
+        this.removePrompt(index);
+      });
     });
-  });
 
-  // 绑定重命名按钮事件
-  this.promptList.querySelectorAll('.rename-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const index = parseInt((e.target as HTMLElement).getAttribute('data-index') || '0');
-      this.renamePrompt(index);
+    // 绑定重命名按钮事件
+    this.promptList.querySelectorAll('.rename-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const index = parseInt((e.target as HTMLElement).getAttribute('data-index') || '0');
+        this.renamePrompt(index);
+      });
     });
-  });
-}
+  }
 
 
-private currentFileName: string = '';
+  private currentFileName: string = '';
 
-private async handleFileSelect(event: Event): Promise<void> {
-  const input = event.target as HTMLInputElement;
-  const file = input.files?.[0];
-  
-  if (!file) return;
+  private async handleFileSelect(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
 
-  try {
-    this.currentFileContent = await file.text();
-    
-    // 提取文件名（去掉扩展名）
-    this.currentFileName = file.name.replace(/\.(md|markdown|txt)$/i, '');
-    
-    // 更新显示
-    if (this.fileNameDisplay) {
-      this.fileNameDisplay.textContent = file.name;
-      this.fileNameDisplay.style.color = '#fff';
+    if (!file) return;
+
+    try {
+      this.currentFileContent = await file.text();
+
+      // 提取文件名（去掉扩展名）
+      this.currentFileName = file.name.replace(/\.(md|markdown|txt)$/i, '');
+
+      // 更新显示
+      if (this.fileNameDisplay) {
+        this.fileNameDisplay.textContent = file.name;
+        this.fileNameDisplay.style.color = '#fff';
+      }
+
+      this.showStatus(
+        `✅ 已加载: ${file.name} (${this.currentFileContent.length} 字符)`,
+        'success'
+      );
+    } catch (error) {
+      console.error('读取文件失败:', error);
+      this.showStatus('❌ 读取文件失败', 'error');
     }
-    
-    this.showStatus(
-      `✅ 已加载: ${file.name} (${this.currentFileContent.length} 字符)`, 
-      'success'
+  }
+
+
+  private addPrompt(): void {
+    // 验证：检查是否选择了文件
+    if (!this.currentFileContent || this.currentFileContent.trim().length === 0) {
+      this.showStatus('❌ 请先选择文件', 'error');
+      const fileWrapper = document.getElementById('file-selector-wrapper');
+      if (fileWrapper) {
+        fileWrapper.style.borderColor = '#ff4444';
+        setTimeout(() => {
+          if (fileWrapper) fileWrapper.style.borderColor = '#3e3e3e';
+        }, 2000);
+      }
+      return;
+    }
+
+    if (!this.currentSettings.promptFiles) {
+      this.currentSettings.promptFiles = [];
+    }
+
+    // 检查是否已存在同名提示词
+    const exists = this.currentSettings.promptFiles.some(
+      p => p.name === this.currentFileName
     );
-  } catch (error) {
-    console.error('读取文件失败:', error);
-    this.showStatus('❌ 读取文件失败', 'error');
-  }
-}
 
-
-private addPrompt(): void {
-  // 验证：检查是否选择了文件
-  if (!this.currentFileContent || this.currentFileContent.trim().length === 0) {
-    this.showStatus('❌ 请先选择文件', 'error');
-    const fileWrapper = document.getElementById('file-selector-wrapper');
-    if (fileWrapper) {
-      fileWrapper.style.borderColor = '#ff4444';
-      setTimeout(() => {
-        if (fileWrapper) fileWrapper.style.borderColor = '#3e3e3e';
-      }, 2000);
+    if (exists) {
+      this.showStatus(`❌ 提示词 "${this.currentFileName}" 已存在`, 'error');
+      return;
     }
-    return;
+
+    const newPrompt = {
+      id: Date.now().toString(),
+      name: this.currentFileName, // 使用文件名
+      path: this.currentFileContent,
+      enabled: true
+    };
+
+    this.currentSettings.promptFiles.push(newPrompt);
+    this.renderPromptList();
+
+    // 清空
+    if (this.fileNameDisplay) {
+      this.fileNameDisplay.textContent = '未选择文件';
+      this.fileNameDisplay.style.color = '#888';
+    }
+    this.currentFileContent = '';
+    this.currentFileName = '';
+
+    // 重置文件输入框
+    if (this.promptFileInput) {
+      this.promptFileInput.value = '';
+    }
+
+    this.saveDraft();
+
+    this.showStatus(`✅ 已添加提示词：${newPrompt.name}`, 'success');
   }
+  private renamePrompt(index: number): void {
+    if (!this.currentSettings.promptFiles) return;
 
-  if (!this.currentSettings.promptFiles) {
-    this.currentSettings.promptFiles = [];
-  }
+    const prompt = this.currentSettings.promptFiles[index];
+    if (!prompt) return;
 
-  // 检查是否已存在同名提示词
-  const exists = this.currentSettings.promptFiles.some(
-    p => p.name === this.currentFileName
-  );
-  
-  if (exists) {
-    this.showStatus(`❌ 提示词 "${this.currentFileName}" 已存在`, 'error');
-    return;
-  }
+    // 找到对应的 DOM 元素
+    const items = this.promptList?.querySelectorAll('.url-item');
+    if (!items || !items[index]) return;
 
-  const newPrompt = {
-    id: Date.now().toString(),
-    name: this.currentFileName, // 使用文件名
-    path: this.currentFileContent,
-    enabled: true
-  };
+    const item = items[index];
+    const nameElement = item.querySelector('div > div:first-child') as HTMLElement;
+    if (!nameElement) return;
 
-  this.currentSettings.promptFiles.push(newPrompt);
-  this.renderPromptList();
+    // 保存原始名称
+    const originalName = prompt.name;
+    const originalHTML = nameElement.innerHTML;
 
-  // 清空
-  if (this.fileNameDisplay) {
-    this.fileNameDisplay.textContent = '未选择文件';
-    this.fileNameDisplay.style.color = '#888';
-  }
-  this.currentFileContent = '';
-  this.currentFileName = '';
-
-  // 重置文件输入框
-  if (this.promptFileInput) {
-    this.promptFileInput.value = '';
-  }
-
-  this.saveDraft();
-  
-  this.showStatus(`✅ 已添加提示词：${newPrompt.name}`, 'success');
-}
-private renamePrompt(index: number): void {
-  if (!this.currentSettings.promptFiles) return;
-
-  const prompt = this.currentSettings.promptFiles[index];
-  if (!prompt) return;
-
-  // 找到对应的 DOM 元素
-  const items = this.promptList?.querySelectorAll('.url-item');
-  if (!items || !items[index]) return;
-
-  const item = items[index];
-  const nameElement = item.querySelector('div > div:first-child') as HTMLElement;
-  if (!nameElement) return;
-
-  // 保存原始名称
-  const originalName = prompt.name;
-  const originalHTML = nameElement.innerHTML;
-
-  // 创建输入框
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.value = originalName;
-  input.style.cssText = `
+    // 创建输入框
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = originalName;
+    input.style.cssText = `
     width: 100%;
     padding: 4px 8px;
     background: #2d2d2d;
@@ -1065,71 +1085,176 @@ private renamePrompt(index: number): void {
     font-weight: 500;
   `;
 
-  // 替换为输入框
-  nameElement.innerHTML = '';
-  nameElement.appendChild(input);
-  input.focus();
-  input.select();
+    // 替换为输入框
+    nameElement.innerHTML = '';
+    nameElement.appendChild(input);
+    input.focus();
+    input.select();
 
-  // 保存函数
-  const save = () => {
-    const newName = input.value.trim();
+    // 保存函数
+    const save = () => {
+      const newName = input.value.trim();
 
-    if (!newName) {
+      if (!newName) {
+        nameElement.innerHTML = originalHTML;
+        this.showStatus('❌ 名称不能为空', 'error');
+        return;
+      }
+
+      // 检查重名
+      const exists = this.currentSettings.promptFiles!.some(
+        (p, i) => i !== index && p.name === newName
+      );
+
+      if (exists) {
+        nameElement.innerHTML = originalHTML;
+        this.showStatus(`❌ 提示词 "${newName}" 已存在`, 'error');
+        return;
+      }
+
+      // 更新名称
+      prompt.name = newName;
+      nameElement.innerHTML = `📝 ${this.escapeHtml(newName)}`;
+
+      this.saveDraft();
+      this.showStatus(`✅ 已重命名为：${newName}`, 'success');
+    };
+
+    // 取消函数
+    const cancel = () => {
       nameElement.innerHTML = originalHTML;
-      this.showStatus('❌ 名称不能为空', 'error');
-      return;
-    }
+    };
 
-    // 检查重名
-    const exists = this.currentSettings.promptFiles!.some(
-      (p, i) => i !== index && p.name === newName
-    );
+    // 回车保存
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        save();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        cancel();
+      }
+    });
 
-    if (exists) {
-      nameElement.innerHTML = originalHTML;
-      this.showStatus(`❌ 提示词 "${newName}" 已存在`, 'error');
-      return;
-    }
-
-    // 更新名称
-    prompt.name = newName;
-    nameElement.innerHTML = `📝 ${this.escapeHtml(newName)}`;
-    
-    this.saveDraft();
-    this.showStatus(`✅ 已重命名为：${newName}`, 'success');
-  };
-
-  // 取消函数
-  const cancel = () => {
-    nameElement.innerHTML = originalHTML;
-  };
-
-  // 回车保存
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      save();
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      cancel();
-    }
-  });
-
-  // 失焦保存
-  input.addEventListener('blur', save);
-}
+    // 失焦保存
+    input.addEventListener('blur', save);
+  }
 
 
 
 
   private removePrompt(index: number): void {
     if (!this.currentSettings.promptFiles) return;
-    
+
     this.currentSettings.promptFiles.splice(index, 1);
     this.renderPromptList();
     this.saveDraft();
     this.showStatus('✅ 已删除，请点击保存设置', 'success');
+  }
+
+  private async loadPathMemoryData(): Promise<void> {
+    const activeProject = await chrome.storage.local.get(['activeProject']);
+    this.activeProjectRoot = activeProject.activeProject?.rootPath || 'default';
+
+    // 更新 UI 显示当前项目
+    const projectDisplay = document.getElementById('active-project-display');
+    const projectText = document.getElementById('project-path-text');
+    if (projectDisplay && projectText && activeProject.activeProject) {
+      projectDisplay.style.display = 'block';
+      projectText.textContent = activeProject.activeProject.projectName || activeProject.activeProject.rootPath;
+      projectText.title = activeProject.activeProject.rootPath;
+    }
+
+    const storageKey = `pathMemory_${this.activeProjectRoot}`;
+    const result = await chrome.storage.local.get([storageKey]);
+    this.pathMemory = result[storageKey] || {};
+    this.renderMemoryList();
+  }
+
+  private renderMemoryList(): void {
+    if (!this.memoryList) return;
+
+    const entries = Object.entries(this.pathMemory);
+    if (entries.length === 0) {
+      this.memoryList.innerHTML = '<div class="empty-state">暂无路径记忆</div>';
+      return;
+    }
+
+    this.memoryList.innerHTML = entries
+      .map(([filename, path]) => `
+      <div class="memory-item">
+        <div class="memory-info">
+          <span class="memory-filename">${this.escapeHtml(filename)}</span>
+        </div>
+        <div class="memory-path">${this.escapeHtml(path)}</div>
+        <div class="memory-actions">
+          <button class="btn-edit" data-filename="${this.escapeHtml(filename)}" data-path="${this.escapeHtml(path)}">编辑</button>
+          <button class="btn-delete" data-filename="${this.escapeHtml(filename)}">删除</button>
+        </div>
+      </div>
+    `)
+      .join('');
+
+    // 绑定删除按钮
+    this.memoryList.querySelectorAll('.btn-delete').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const filename = (e.target as HTMLElement).getAttribute('data-filename');
+        if (filename) this.removeMemory(filename);
+      });
+    });
+
+    // 绑定编辑按钮
+    this.memoryList.querySelectorAll('.btn-edit').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const filename = (e.target as HTMLElement).getAttribute('data-filename');
+        const path = (e.target as HTMLElement).getAttribute('data-path');
+        if (filename && path) {
+          if (this.memFilenameInput) this.memFilenameInput.value = filename;
+          if (this.memPathInput) this.memPathInput.value = path;
+          this.memPathInput?.focus();
+        }
+      });
+    });
+  }
+
+  private async addMemory(): Promise<void> {
+    const filename = this.memFilenameInput?.value.trim();
+    const path = this.memPathInput?.value.trim();
+
+    if (!filename || !path) {
+      this.showStatus('请输入文件名和路径', 'error');
+      return;
+    }
+
+    this.pathMemory[filename] = path;
+    const storageKey = `pathMemory_${this.activeProjectRoot}`;
+    await chrome.storage.local.set({ [storageKey]: this.pathMemory });
+
+    if (this.memFilenameInput) this.memFilenameInput.value = '';
+    if (this.memPathInput) this.memPathInput.value = '';
+
+    this.renderMemoryList();
+    this.showStatus('✅ 记忆已添加', 'success');
+  }
+
+  private async removeMemory(filename: string): Promise<void> {
+    if (confirm(`确定要删除 ${filename} 的路径记忆吗？`)) {
+      delete this.pathMemory[filename];
+      const storageKey = `pathMemory_${this.activeProjectRoot}`;
+      await chrome.storage.local.set({ [storageKey]: this.pathMemory });
+      this.renderMemoryList();
+      this.showStatus('✅ 记忆已删除', 'success');
+    }
+  }
+
+  private async clearAllMemory(): Promise<void> {
+    if (confirm('确定要清空当前项目的路径记忆吗？此操作不可撤销。')) {
+      this.pathMemory = {};
+      const storageKey = `pathMemory_${this.activeProjectRoot}`;
+      await chrome.storage.local.set({ [storageKey]: {} });
+      this.renderMemoryList();
+      this.showStatus('✅ 记忆已清空', 'success');
+    }
   }
 }
 

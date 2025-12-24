@@ -19,7 +19,7 @@ async function connectWebSocket() {
   // 清理已存在的ws事件，彻底断开（防止多实例）
   if (ws) {
     ws.onopen = ws.onclose = ws.onerror = ws.onmessage = null;
-    try { ws.close(); } catch (e) {}
+    try { ws.close(); } catch (e) { }
     ws = null;
   }
 
@@ -46,7 +46,7 @@ async function connectWebSocket() {
     ws.onclose = () => {
       console.log('WebSocket 连接已关闭');
       isConnected = false;
-      if (ws) try { ws.close(); } catch {}
+      if (ws) try { ws.close(); } catch { }
       ws = null;
       broadcastConnectionStatus(false);
       scheduleReconnect();
@@ -62,6 +62,21 @@ async function connectWebSocket() {
 
     ws.onmessage = (event) => {
       console.log('收到来自 VS Code 的消息:', event.data);
+      try {
+        const message = JSON.parse(event.data.toString());
+        if (message.type === 'projectInfo') {
+          console.log('活跃项目已更新:', message.rootPath);
+          chrome.storage.local.set({
+            activeProject: {
+              rootPath: message.rootPath,
+              projectName: message.projectName,
+              timestamp: Date.now()
+            }
+          });
+        }
+      } catch (e) {
+        console.error('解析消息失败:', e);
+      }
     };
 
   } catch (error) {
@@ -84,9 +99,9 @@ function processMessageQueue() {
       }));
       sendResponse({ success: true });
     } catch (e) {
-  const msg = (typeof e === 'object' && e && 'message' in e) ? (e as any).message : String(e);
-  sendResponse({ success: false, error: msg });
-}
+      const msg = (typeof e === 'object' && e && 'message' in e) ? (e as any).message : String(e);
+      sendResponse({ success: false, error: msg });
+    }
   }
 }
 
@@ -109,7 +124,7 @@ function failAllQueueAndClear(reason = '未知错误') {
     messageQueue.forEach(item => {
       try {
         item.sendResponse && item.sendResponse({ success: false, error: reason });
-      } catch {}
+      } catch { }
     });
     messageQueue = [];
     console.warn(`[debug] 队列全部清空，因：${reason}`);
@@ -123,7 +138,7 @@ function broadcastConnectionStatus(connected: boolean) {
         chrome.tabs.sendMessage(tab.id, {
           type: 'connectionStatus',
           status: connected ? 'connected' : 'disconnected'
-        }).catch(() => {});
+        }).catch(() => { });
       }
     });
   });
@@ -146,7 +161,7 @@ function sendMessageToVSCode(message: any, sendResponse: Function) {
 
   try {
     ws.send(JSON.stringify({
-      type: 'saveFile',
+      type: message.type === 'patch' ? 'patchFile' : 'saveFile',
       content: message.content,
       filename: message.filename,
       savePath: message.savePath || '',  // 传递路径
@@ -185,7 +200,7 @@ chrome.storage.onChanged.addListener((changes) => {
     console.log('端口配置已更改，重新连接...');
     // 彻底清理旧队列和ws，从头开始
     failAllQueueAndClear('端口变更清理');
-    if (ws) { try { ws.close(); } catch {} }
+    if (ws) { try { ws.close(); } catch { } }
     setTimeout(() => connectWebSocket(), 500);
   }
 });
