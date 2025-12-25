@@ -112,19 +112,24 @@ class FloatingPanel {
 
 
   private async checkAndInitialize(): Promise<void> {
-    const result = await chrome.storage.sync.get({
-      enabledUrls: [
-        'chat.openai.com',
-        'claude.ai',
-        'gemini.google.com',
-        'perplexity.ai'
-      ],
-      showOnAllSites: false
-    });
+    // 统一从 settings 键读取配置
+    const storageData = await chrome.storage.sync.get('settings');
+    const settings = storageData.settings || {};
 
+    const defaultUrls = [
+      'chat.openai.com',
+      'claude.ai',
+      'gemini.google.com',
+      'chatgpt.com',
+      'poe.com',
+      'perplexity.ai',
+      'deepseek.com',
+      'aistudio.google.com'
+    ];
+
+    const enabledUrls: string[] = settings.enabledUrls || defaultUrls;
+    const showOnAllSites = settings.showOnAllSites || false;
     const currentHostname = window.location.hostname;
-    const showOnAllSites = result.showOnAllSites;
-    const enabledUrls: string[] = result.enabledUrls;
 
     if (showOnAllSites || this.isUrlEnabled(currentHostname, enabledUrls)) {
       this.enabled = true;
@@ -136,7 +141,7 @@ class FloatingPanel {
     }
 
     chrome.storage.onChanged.addListener((changes) => {
-      if (changes.enabledUrls || changes.showOnAllSites || changes.siteConfigs) {
+      if (changes.settings) {
         window.location.reload();
       }
     });

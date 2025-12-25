@@ -46,7 +46,9 @@ const DEFAULT_URLS = [
   'gemini.google.com',
   'chatgpt.com',
   'poe.com',
-  'perplexity.ai'
+  'perplexity.ai',
+  'deepseek.com',
+  'aistudio.google.com'
 ];
 
 

@@ -23,7 +23,8 @@ async function connectWebSocket() {
     ws = null;
   }
 
-  const settings = await chrome.storage.sync.get({ port: 8765 });
+  const storageData = await chrome.storage.sync.get('settings');
+  const settings = storageData.settings || {};
   const port = settings.port || 8765;
   const wsUrl = `ws://localhost:${port}`;
   console.log('尝试连接到 WebSocket:', wsUrl);
@@ -196,12 +197,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 connectWebSocket();
 
 chrome.storage.onChanged.addListener((changes) => {
-  if (changes.port) {
-    console.log('端口配置已更改，重新连接...');
-    // 彻底清理旧队列和ws，从头开始
-    failAllQueueAndClear('端口变更清理');
-    if (ws) { try { ws.close(); } catch { } }
-    setTimeout(() => connectWebSocket(), 500);
+  if (changes.settings) {
+    const oldSettings = changes.settings.oldValue || {};
+    const newSettings = changes.settings.newValue || {};
+
+    if (oldSettings.port !== newSettings.port) {
+      console.log('端口配置已更改，重新连接...');
+      // 彻底清理旧队列和ws，从头开始
+      failAllQueueAndClear('端口变更清理');
+      if (ws) { try { ws.close(); } catch { } }
+      setTimeout(() => connectWebSocket(), 500);
+    }
   }
 });
 
