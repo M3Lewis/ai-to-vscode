@@ -37,7 +37,7 @@ export class DOMHelper {
   public static findLatestCopyButton(): HTMLElement | null {
     const perfStart = performance.now();
     console.group('🔍 [性能监控] 查找COPY按钮');
-    
+
     const currentHostname = window.location.hostname;
     console.log('📍 当前域名:', currentHostname);
     console.log('⏱️ 开始时间:', new Date().toLocaleTimeString());
@@ -67,7 +67,7 @@ export class DOMHelper {
 
     const perfEnd = performance.now();
     const timeTaken = (perfEnd - perfStart).toFixed(2);
-    
+
     console.log('⏱️ 查找耗时:', timeTaken, 'ms');
     console.log('📊 结果:', result ? '✅ 找到按钮' : '❌ 未找到按钮');
     console.log('💾 当前内存使用:', this.getMemoryUsage());
@@ -91,9 +91,9 @@ export class DOMHelper {
         'div.py-md.md\\:pb-headerHeight.mx-auto.max-w-threadContentWidth > div'
       );
       console.timeEnd('查找回复容器');
-      
+
       console.log('📦 回复容器数量:', replyContainers.length);
-      
+
       if (replyContainers.length === 0) {
         console.warn('❌ 未找到回复容器');
         console.groupEnd();
@@ -110,7 +110,7 @@ export class DOMHelper {
         'button[aria-label*="Copy"], button[data-testid*="copy"]'
       );
       console.timeEnd('查找复制按钮');
-      
+
       console.log('🔘 复制按钮数量:', copyBtns.length);
 
       if (copyBtns.length > 0) {
@@ -158,7 +158,7 @@ export class DOMHelper {
   private static findButtonWithConfig(config: SiteConfig): HTMLElement | null {
     const startTime = performance.now();
     console.group('🔍 [配置查找]', config.name);
-    
+
     const selector = config.copyButtonSelector;
     console.log('🎯 选择器:', selector);
 
@@ -191,7 +191,7 @@ export class DOMHelper {
           console.time('容器内查找按钮');
           const button = lastResponse.querySelector<HTMLElement>(selector);
           console.timeEnd('容器内查找按钮');
-          
+
           if (button) {
             console.log('✅ 在容器中找到按钮');
             console.groupEnd();
@@ -225,7 +225,7 @@ export class DOMHelper {
 
   private static findClaudeCopyButton(): HTMLElement | null {
     console.group('🔍 [Claude] 专用查找');
-    
+
     try {
       console.time('查找Claude按钮');
       const buttons = Array.from(document.querySelectorAll<HTMLElement>('button[data-testid="action-bar-copy"]'));
@@ -241,7 +241,7 @@ export class DOMHelper {
       console.time('SVG路径查找');
       const allButtons = Array.from(document.querySelectorAll<HTMLElement>('button'));
       console.log('🔍 页面按钮总数:', allButtons.length);
-      
+
       if (allButtons.length > 1000) {
         console.error('❌ 按钮数量异常 (>1000)，可能导致性能问题！');
       }
@@ -274,25 +274,29 @@ export class DOMHelper {
 
   private static findAIStudioCopyButton(): HTMLElement | null {
     console.group('🔍 [AI Studio] 专用查找');
-    
+
     try {
       const strategies = [
         { name: 'jslog属性', fn: () => document.querySelector<HTMLElement>('button[mat-menu-item][jslog^="282205"]') },
-        { name: 'copy-markdown-button类', fn: () => {
-          const icon = document.querySelector<HTMLElement>('.copy-markdown-button');
-          return icon?.closest('button[mat-menu-item]') as HTMLElement;
-        }},
-        { name: 'Copy as markdown文本', fn: () => {
-          const items = Array.from(document.querySelectorAll<HTMLElement>('button[mat-menu-item]'));
-          return items.find(item => item.textContent?.toLowerCase().includes('copy as markdown')) || null;
-        }}
+        {
+          name: 'copy-markdown-button类', fn: () => {
+            const icon = document.querySelector<HTMLElement>('.copy-markdown-button');
+            return icon?.closest('button[mat-menu-item]') as HTMLElement;
+          }
+        },
+        {
+          name: 'Copy as markdown文本', fn: () => {
+            const items = Array.from(document.querySelectorAll<HTMLElement>('button[mat-menu-item]'));
+            return items.find(item => item.textContent?.toLowerCase().includes('copy as markdown')) || null;
+          }
+        }
       ];
 
       for (const strategy of strategies) {
         console.time(strategy.name);
         const result = strategy.fn();
         console.timeEnd(strategy.name);
-        
+
         if (result) {
           console.log('✅ 策略成功:', strategy.name);
           console.groupEnd();
@@ -310,7 +314,7 @@ export class DOMHelper {
 
   private static findButtonGeneric(): HTMLElement | null {
     console.group('🔍 [通用策略] 查找');
-    
+
     const selectors = [
       'button[data-testid*="copy"]',
       'button[aria-label*="Copy" i]',
@@ -351,19 +355,19 @@ export class DOMHelper {
   public static async getClipboardContent(): Promise<string> {
     const startTime = performance.now();
     console.group('📋 [剪贴板] 读取内容');
-    
+
     try {
       const content = await navigator.clipboard.readText();
       const timeTaken = (performance.now() - startTime).toFixed(2);
-      
+
       console.log('✅ 读取成功');
       console.log('📏 内容长度:', content.length, '字符');
       console.log('⏱️ 读取耗时:', timeTaken, 'ms');
-      
+
       if (content.length > 50000) {
         console.warn('⚠️ 内容过大 (>50KB)，可能影响性能！');
       }
-      
+
       console.groupEnd();
       return content;
     } catch (error) {
@@ -385,41 +389,59 @@ export class DOMHelper {
 
   public static makeDraggable(element: HTMLElement): void {
     let isDragging = false;
-    let currentX: number;
-    let currentY: number;
     let initialX: number;
     let initialY: number;
 
-    const header = element.querySelector<HTMLElement>('.panel-header');
+    // 修正：使用 content.ts 中定义的类名 .ai-vscode-header
+    const header = element.querySelector<HTMLElement>('.ai-vscode-header');
     if (!header) return;
 
     header.style.cursor = 'move';
 
     header.addEventListener('mousedown', (e: MouseEvent) => {
-      if ((e.target as HTMLElement).classList.contains('close-btn')) {
+      // 如果点击的是按钮，不触发拖拽
+      if ((e.target as HTMLElement).closest('button')) {
         return;
       }
 
       isDragging = true;
       initialX = e.clientX - element.offsetLeft;
       initialY = e.clientY - element.offsetTop;
+
+      // 增加拖拽时的样式
+      element.style.transition = 'none';
+      element.classList.add('dragging');
     });
 
     document.addEventListener('mousemove', (e: MouseEvent) => {
       if (!isDragging) return;
 
       e.preventDefault();
-      currentX = e.clientX - initialX;
-      currentY = e.clientY - initialY;
 
-      element.style.left = `${currentX}px`;
-      element.style.top = `${currentY}px`;
+      let newX = e.clientX - initialX;
+      let newY = e.clientY - initialY;
+
+      // 边界检查：防止拖出屏幕
+      const padding = 10;
+      const maxX = window.innerWidth - element.offsetWidth - padding;
+      const maxY = window.innerHeight - element.offsetHeight - padding;
+
+      newX = Math.max(padding, Math.min(newX, maxX));
+      newY = Math.max(padding, Math.min(newY, maxY));
+
+      element.style.left = `${newX}px`;
+      element.style.top = `${newY}px`;
       element.style.right = 'auto';
       element.style.bottom = 'auto';
     });
 
     document.addEventListener('mouseup', () => {
-      isDragging = false;
+      if (isDragging) {
+        isDragging = false;
+        element.classList.remove('dragging');
+        // 恢复过渡效果（如果有的话）
+        element.style.transition = '';
+      }
     });
   }
 }
