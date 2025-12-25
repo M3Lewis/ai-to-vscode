@@ -177,11 +177,43 @@ function sendMessageToVSCode(message: any, sendResponse: Function) {
 }
 
 
+async function handleCaptureScreenshot(sendResponse: Function) {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab || !tab.id) {
+      sendResponse({ success: false, error: '未找到活动标签页' });
+      return;
+    }
+
+    const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' });
+
+    // 发送到 VS Code
+    sendMessageToVSCode({
+      action: 'sendToVSCode',
+      type: 'screenshot',
+      dataUrl: dataUrl,
+      filename: `screenshot_${Date.now()}.png`
+    }, (vsResponse: any) => {
+      // 将 dataUrl 返回给 content script，以便其写入剪贴板
+      sendResponse({ ...vsResponse, dataUrl: dataUrl });
+    });
+
+  } catch (error) {
+    console.error('截图失败:', error);
+    sendResponse({ success: false, error: '截图失败: ' + String(error) });
+  }
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'sendToVSCode') {
     debugStatus('收到发送请求');
     sendMessageToVSCode(message, sendResponse);
     return true; // 一定返回true以便异步call
+  }
+
+  if (message.action === 'captureScreenshot') {
+    handleCaptureScreenshot(sendResponse);
+    return true;
   }
 
   if (message.action === 'getConnectionStatus') {

@@ -9,11 +9,26 @@ class FloatingPanel {
   private promptButtons: HTMLElement | null = null;
   private isDebugMode: boolean = false;
   private pathMemory: Record<string, string> = {}; // 新增：路径记忆
+  private picker: ElementPicker | null = null;
 
   constructor() {
     this.initialize();
     this.checkDebugMode();
     this.setupStorageListener();
+  }
+
+  // 在 class FloatingPanel 内部添加
+  private setUIVisibility(visible: boolean): void {
+    if (this.panel) {
+      // 使用 display: none 是最彻底的，确保不占位且不被渲染
+      this.panel.style.display = visible ? 'block' : 'none';
+    }
+
+    // 隐藏所有正在显示的通知元素
+    const notifications = document.querySelectorAll('.notification');
+    notifications.forEach(el => {
+      (el as HTMLElement).style.display = visible ? 'block' : 'none';
+    });
   }
 
   private checkDebugMode(): void {
@@ -160,6 +175,8 @@ class FloatingPanel {
   private createPanel(): void {
     this.panel = document.createElement('div');
     this.panel.id = 'ai-vscode-panel';
+    // 新增：很多截图库（如 html2canvas）会识别这个属性并跳过渲染
+    this.panel.setAttribute('data-html2canvas-ignore', 'true');
 
     this.panel.innerHTML = `
     <div class="panel-container">
@@ -183,6 +200,10 @@ class FloatingPanel {
           <button id="create-files-from-content" class="secondary" title="识别代码块中的路径并直接创建文件">识别并创建</button>
           <button id="patch-files-from-content" class="secondary" title="智能识别路径并局部更新文件内容">局部更新</button>
         </div>
+        <div class="button-group" style="margin-top: 8px;">
+          <button id="select-element" class="secondary" title="选择页面元素并提取其 HTML/CSS">选择元素</button>
+          <button id="send-screenshot" class="secondary" title="截取当前页面并发送到 VS Code">发送截图</button>
+        </div>
         <div id="connection-status" class="connection-status">
           <span class="status-dot"></span>
           <span class="status-text">未连接</span>
@@ -202,6 +223,12 @@ class FloatingPanel {
 
     const patchFilesButton = document.getElementById('patch-files-from-content');
     patchFilesButton?.addEventListener('click', () => this.handlePartialUpdateClick());
+
+    const selectElementButton = document.getElementById('select-element');
+    selectElementButton?.addEventListener('click', () => this.handleSelectElementClick());
+
+    const sendScreenshotButton = document.getElementById('send-screenshot');
+    sendScreenshotButton?.addEventListener('click', () => this.handleSendScreenshotClick());
 
     const closeButton = document.getElementById('close-panel');
     closeButton?.addEventListener('click', () => this.togglePanel());
@@ -246,6 +273,12 @@ class FloatingPanel {
 
   private async handleSendClick(): Promise<void> {
     const overallStart = performance.now();
+
+    // --- 新增：截图前隐藏 UI ---
+    this.setUIVisibility(false);
+    // 给浏览器 50ms 时间进行重绘，确保 UI 在截图中消失
+    await this.delay(50);
+
     console.group('🚀 [复制并保存] 完整流程');
     console.log('⏱️ 开始时间:', new Date().toLocaleTimeString());
     console.log('💾 初始内存:', this.getMemoryUsage());
@@ -254,7 +287,6 @@ class FloatingPanel {
       // AI Studio 特殊处理
       if (window.location.hostname.includes('aistudio.google.com')) {
         await this.handleAIStudioCopy();
-        console.groupEnd();
         return;
       }
 
@@ -318,10 +350,18 @@ class FloatingPanel {
       console.log('💾 错误时内存:', this.getMemoryUsage());
       this.showError(`操作失败：${errorMessage}`);
       console.groupEnd();
+    } finally {
+      // --- 新增：无论成功失败，最后必须恢复 UI 显示 ---
+      this.setUIVisibility(true);
+      console.groupEnd();
     }
   }
 
   private async handleCreateFilesClick(): Promise<void> {
+
+    this.setUIVisibility(false); // 隐藏
+    await this.delay(50);        // 强制重绘
+
     console.group('🚀 [识别并创建文件] 流程开始');
     try {
       // 1. 获取内容
@@ -389,11 +429,15 @@ class FloatingPanel {
       console.error('识别并创建文件失败:', error);
       this.showError('识别并创建文件失败');
     } finally {
+      this.setUIVisibility(true);  // 恢复
       console.groupEnd();
     }
   }
 
   private async handlePartialUpdateClick(): Promise<void> {
+    this.setUIVisibility(false); // 隐藏
+    await this.delay(50);        // 强制重绘
+
     console.group('🚀 [局部更新文件] 流程开始');
     try {
       // 1. 获取内容
@@ -460,9 +504,83 @@ class FloatingPanel {
       console.error('局部更新失败:', error);
       this.showError('局部更新失败');
     } finally {
+      this.setUIVisibility(true);  // 恢复
       console.groupEnd();
     }
   }
+
+  private handleSelectElementClick(): void {
+    if (!this.picker) {
+      this.picker = new ElementPicker(async (el) => {
+        const info = ElementPicker.getElementInfo(el);
+        // 选择元素后，自动触发截图并合并信息
+        await this.handleCaptureWithText(info);
+      });
+    }
+    this.picker.start();
+    this.showNotification('请在页面上选择一个元素 (Esc 退出)', 'success');
+  }
+
+  private async handleSendScreenshotClick(): Promise<void> {
+    // 普通截图，不带额外文本
+    await this.handleCaptureWithText(null);
+  }
+
+  // 统一的截图处理方法，支持附加文本
+  private async handleCaptureWithText(additionalText: string | null): Promise<void> {
+    // 截图前隐藏悬浮窗
+    this.setUIVisibility(false);
+    this.showNotification('正在捕获...', 'success');
+
+    // 给浏览器 50ms 时间进行重绘
+    await this.delay(50);
+
+    chrome.runtime.sendMessage({ action: 'captureScreenshot' }, async (response) => {
+      // 截图完成后立即恢复显示
+      this.setUIVisibility(true);
+
+      if (chrome.runtime.lastError) {
+        this.showError('截图失败: ' + chrome.runtime.lastError.message);
+        return;
+      }
+      if (response && response.success) {
+        if (response.dataUrl) {
+          try {
+            await this.copyToClipboard(response.dataUrl, additionalText);
+            const msg = additionalText
+              ? '✅ 元素信息与截图已合并复制，请 Ctrl+V 粘贴'
+              : '✅ 截图已复制，请 Ctrl+V 粘贴';
+            this.showSuccess(msg);
+          } catch (err) {
+            console.error('复制到剪贴板失败:', err);
+            this.showSuccess('✅ 截图已发送到 VS Code (剪贴板复制失败)');
+          }
+        } else {
+          this.showSuccess('✅ 截图已发送到 VS Code');
+        }
+      } else {
+        this.showError('截图失败: ' + (response?.error || '未知错误'));
+      }
+    });
+  }
+
+  private async copyToClipboard(dataUrl: string, text: string | null): Promise<void> {
+    const response = await fetch(dataUrl);
+    const blob = await response.blob();
+
+    const data: Record<string, Blob> = {
+      [blob.type]: blob
+    };
+
+    if (text) {
+      // 添加文本数据
+      data['text/plain'] = new Blob([text], { type: 'text/plain' });
+    }
+
+    const item = new ClipboardItem(data);
+    await navigator.clipboard.write([item]);
+  }
+
 
   private parseFilesFromContent(content: string): Array<{ path: string; filename: string; savePath: string; content: string }> {
     const files: Array<{ path: string; filename: string; savePath: string; content: string }> = [];
@@ -941,8 +1059,6 @@ class FloatingPanel {
             transition: all 0.2s;
             text-align: left;
           "
-          onmouseover="this.style.background='#5f4dd1'"
-          onmouseout="this.style.background='#6c5ce7'"
         >
           📝 ${this.escapeHtml(prompt.name)}
         </button>
@@ -952,9 +1068,18 @@ class FloatingPanel {
     // 保存提示词内容到按钮的自定义属性
     const buttons = this.promptButtons.querySelectorAll('.prompt-btn');
     buttons.forEach((btn, index) => {
-      (btn as any).__promptContent = prompts.filter(p => p.enabled)[index].path;
+      const htmlBtn = btn as HTMLElement;
+      (htmlBtn as any).__promptContent = prompts.filter(p => p.enabled)[index].path;
 
-      btn.addEventListener('click', (e) => {
+      // 移出内联事件，改用 addEventListener 以符合 CSP
+      htmlBtn.addEventListener('mouseover', () => {
+        htmlBtn.style.background = '#5f4dd1';
+      });
+      htmlBtn.addEventListener('mouseout', () => {
+        htmlBtn.style.background = '#6c5ce7';
+      });
+
+      htmlBtn.addEventListener('click', (e) => {
         const target = e.currentTarget as any;
         const content = target.__promptContent;
         const name = target.getAttribute('data-prompt-name');
@@ -1124,6 +1249,126 @@ class FloatingPanel {
     return div.innerHTML;
   }
 }
+
+class ElementPicker {
+  private overlay: HTMLElement | null = null;
+  private hoveredElement: HTMLElement | null = null;
+  private onSelect: (element: HTMLElement) => void;
+  private isActive: boolean = false;
+
+  constructor(onSelect: (element: HTMLElement) => void) {
+    this.onSelect = onSelect;
+    this.handleMouseMove = this.handleMouseMove.bind(this);
+    this.handleClick = this.handleClick.bind(this);
+    this.handleKeyDown = this.handleKeyDown.bind(this);
+  }
+
+  public start(): void {
+    if (this.isActive) return;
+    this.isActive = true;
+    this.createOverlay();
+    document.addEventListener('mousemove', this.handleMouseMove, true);
+    document.addEventListener('click', this.handleClick, true);
+    document.addEventListener('keydown', this.handleKeyDown, true);
+    document.body.style.cursor = 'crosshair';
+  }
+
+  public stop(): void {
+    if (!this.isActive) return;
+    this.isActive = false;
+    this.removeOverlay();
+    document.removeEventListener('mousemove', this.handleMouseMove, true);
+    document.removeEventListener('click', this.handleClick, true);
+    document.removeEventListener('keydown', this.handleKeyDown, true);
+    document.body.style.cursor = '';
+    this.hoveredElement = null;
+  }
+
+  private createOverlay(): void {
+    this.overlay = document.createElement('div');
+    this.overlay.id = 'ai-vscode-picker-overlay';
+    Object.assign(this.overlay.style, {
+      position: 'fixed',
+      pointerEvents: 'none',
+      zIndex: '1000000',
+      border: '2px solid #6c5ce7',
+      backgroundColor: 'rgba(108, 92, 231, 0.2)',
+      transition: 'all 0.1s ease',
+      display: 'none'
+    });
+    document.body.appendChild(this.overlay);
+  }
+
+  private removeOverlay(): void {
+    if (this.overlay) {
+      this.overlay.remove();
+      this.overlay = null;
+    }
+  }
+
+  private handleMouseMove(e: MouseEvent): void {
+    const target = e.target as HTMLElement;
+    if (!target || target === this.overlay || target.closest('#ai-vscode-panel')) {
+      if (this.overlay) this.overlay.style.display = 'none';
+      return;
+    }
+
+    this.hoveredElement = target;
+    const rect = target.getBoundingClientRect();
+
+    if (this.overlay) {
+      Object.assign(this.overlay.style, {
+        display: 'block',
+        top: `${rect.top}px`,
+        left: `${rect.left}px`,
+        width: `${rect.width}px`,
+        height: `${rect.height}px`
+      });
+    }
+  }
+
+  private handleClick(e: MouseEvent): void {
+    if (!this.isActive) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (this.hoveredElement) {
+      this.onSelect(this.hoveredElement);
+    }
+    this.stop();
+  }
+
+  private handleKeyDown(e: KeyboardEvent): void {
+    if (e.key === 'Escape') {
+      this.stop();
+    }
+  }
+
+  public static getElementInfo(el: HTMLElement): string {
+    const tag = el.tagName.toLowerCase();
+    const id = el.id ? `#${el.id}` : '';
+    const classes = Array.from(el.classList).map(c => `.${c}`).join('');
+
+    // 获取计算样式
+    const styles = window.getComputedStyle(el);
+    const importantStyles = [
+      'display', 'position', 'width', 'height',
+      'margin', 'padding', 'border',
+      'background-color', 'color', 'font-family', 'font-size',
+      'flex', 'grid', 'justify-content', 'align-items'
+    ];
+
+    let cssText = '计算样式:\n';
+    importantStyles.forEach(prop => {
+      cssText += `  ${prop}: ${styles.getPropertyValue(prop)};\n`;
+    });
+
+    const html = el.outerHTML.split('>')[0] + '>'; // 仅获取开始标签
+
+    return `元素: ${tag}${id}${classes}\n\nHTML: ${html}\n\n${cssText}\n内部文本: ${el.innerText.substring(0, 100)}${el.innerText.length > 100 ? '...' : ''}`;
+  }
+}
+
 
 // 初始化
 new FloatingPanel();
