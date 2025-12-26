@@ -10,6 +10,7 @@ class FloatingPanel {
   private isDebugMode: boolean = false;
   private pathMemory: Record<string, string> = {}; // 新增：路径记忆
   private picker: ElementPicker | null = null;
+  private lastSelectedElement: HTMLElement | null = null; // 新增：记录上次选中的元素
 
   constructor() {
     this.initialize();
@@ -201,8 +202,9 @@ class FloatingPanel {
           <button id="patch-files-from-content" class="secondary" title="智能识别路径并局部更新文件内容">局部更新</button>
         </div>
         <div class="button-group" style="margin-top: 8px;">
-          <button id="select-element" class="secondary" title="选择页面元素并提取其 HTML/CSS">选择元素</button>
-          <button id="send-screenshot" class="secondary" title="截取当前页面并发送到 VS Code">发送截图</button>
+          <button id="screenshot-element" class="secondary" title="选择元素并截图（带红框）">截图元素</button>
+          <button id="copy-element" class="secondary" title="选择元素并复制其代码">复制元素</button>
+          <button id="send-screenshot" class="secondary" title="截取当前页面并发送到 VS Code">全屏截图</button>
         </div>
         <div id="connection-status" class="connection-status">
           <span class="status-dot"></span>
@@ -224,8 +226,11 @@ class FloatingPanel {
     const patchFilesButton = document.getElementById('patch-files-from-content');
     patchFilesButton?.addEventListener('click', () => this.handlePartialUpdateClick());
 
-    const selectElementButton = document.getElementById('select-element');
-    selectElementButton?.addEventListener('click', () => this.handleSelectElementClick());
+    const screenshotElementButton = document.getElementById('screenshot-element');
+    screenshotElementButton?.addEventListener('click', () => this.handleScreenshotElementClick());
+
+    const copyElementButton = document.getElementById('copy-element');
+    copyElementButton?.addEventListener('click', () => this.handleCopyElementClick());
 
     const sendScreenshotButton = document.getElementById('send-screenshot');
     sendScreenshotButton?.addEventListener('click', () => this.handleSendScreenshotClick());
@@ -509,16 +514,45 @@ class FloatingPanel {
     }
   }
 
-  private handleSelectElementClick(): void {
+  private handleScreenshotElementClick(): void {
     if (!this.picker) {
       this.picker = new ElementPicker(async (el) => {
-        const info = ElementPicker.getElementInfo(el);
-        // 选择元素后，自动触发截图并合并信息
-        await this.handleCaptureWithText(info);
+        // 记录选中的元素
+        this.lastSelectedElement = el;
+        // 选择元素后，自动触发截图（带红框），但不合并文本（传 null）
+        await this.handleCaptureWithText(null, el);
       });
     }
     this.picker.start();
-    this.showNotification('请在页面上选择一个元素 (Esc 退出)', 'success');
+    this.showNotification('请选择要截图的元素 (Esc 退出)', 'success');
+  }
+
+  private handleCopyElementClick(): void {
+    // 如果有上次选中的元素，且该元素仍在文档中，直接使用
+    if (this.lastSelectedElement && document.body.contains(this.lastSelectedElement)) {
+      const info = ElementPicker.getElementInfo(this.lastSelectedElement);
+      navigator.clipboard.writeText(info).then(() => {
+        this.showSuccess('✅ 已复制上次选中元素的代码');
+      }).catch(err => {
+        this.showError('复制失败: ' + err);
+      });
+      return;
+    }
+
+    if (!this.picker) {
+      this.picker = new ElementPicker((el) => {
+        // 同时也更新记录
+        this.lastSelectedElement = el;
+        const info = ElementPicker.getElementInfo(el);
+        navigator.clipboard.writeText(info).then(() => {
+          this.showSuccess('✅ 元素信息已复制到剪贴板');
+        }).catch(err => {
+          this.showError('复制失败: ' + err);
+        });
+      });
+    }
+    this.picker.start();
+    this.showNotification('请选择要复制的元素 (Esc 退出)', 'success');
   }
 
   private async handleSendScreenshotClick(): Promise<void> {
@@ -526,10 +560,32 @@ class FloatingPanel {
     await this.handleCaptureWithText(null);
   }
 
-  // 统一的截图处理方法，支持附加文本
-  private async handleCaptureWithText(additionalText: string | null): Promise<void> {
+  // 统一的截图处理方法，支持附加文本和高亮元素
+  private async handleCaptureWithText(additionalText: string | null, highlightElement: HTMLElement | null = null): Promise<void> {
     // 截图前隐藏悬浮窗
     this.setUIVisibility(false);
+
+    // 如果有高亮元素，创建高亮框
+    let highlightBox: HTMLElement | null = null;
+    if (highlightElement) {
+      const rect = highlightElement.getBoundingClientRect();
+      highlightBox = document.createElement('div');
+      Object.assign(highlightBox.style, {
+        position: 'fixed',
+        top: `${rect.top}px`,
+        left: `${rect.left}px`,
+        width: `${rect.width}px`,
+        height: `${rect.height}px`,
+        border: '3px solid red',
+        zIndex: '1000001', // 确保在最上层
+        pointerEvents: 'none',
+        boxSizing: 'border-box'
+      });
+      // 添加 data-html2canvas-ignore 属性，虽然我们是用原生截图，但保持好习惯
+      highlightBox.setAttribute('data-html2canvas-ignore', 'true');
+      document.body.appendChild(highlightBox);
+    }
+
     this.showNotification('正在捕获...', 'success');
 
     // 给浏览器 50ms 时间进行重绘
@@ -538,6 +594,11 @@ class FloatingPanel {
     chrome.runtime.sendMessage({ action: 'captureScreenshot' }, async (response) => {
       // 截图完成后立即恢复显示
       this.setUIVisibility(true);
+
+      // 移除高亮框
+      if (highlightBox) {
+        highlightBox.remove();
+      }
 
       if (chrome.runtime.lastError) {
         this.showError('截图失败: ' + chrome.runtime.lastError.message);
