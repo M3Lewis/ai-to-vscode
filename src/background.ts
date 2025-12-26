@@ -161,13 +161,28 @@ function sendMessageToVSCode(message: any, sendResponse: Function) {
   }
 
   try {
-    ws.send(JSON.stringify({
-      type: message.type === 'patch' ? 'patchFile' : 'saveFile',
-      content: message.content,
-      filename: message.filename,
-      savePath: message.savePath || '',  // 传递路径
+    const wsMessage: any = {
       timestamp: Date.now()
-    }));
+    };
+
+    if (message.type === 'clonePage') {
+      console.log('Background received clonePage message. Package size:', message.package ? JSON.stringify(message.package).length : 'undefined');
+      wsMessage.type = 'clonePage';
+      wsMessage.package = message.package;
+    } else if (message.type === 'patch') {
+      wsMessage.type = 'patchFile';
+      wsMessage.content = message.content;
+      wsMessage.filename = message.filename;
+      wsMessage.savePath = message.savePath || '';
+    } else {
+      // Default to saveFile
+      wsMessage.type = 'saveFile';
+      wsMessage.content = message.content;
+      wsMessage.filename = message.filename;
+      wsMessage.savePath = message.savePath || '';
+    }
+
+    ws.send(JSON.stringify(wsMessage));
     debugStatus('sendMessageToVSCode: sent');
     sendResponse({ success: true });
   } catch (error) {

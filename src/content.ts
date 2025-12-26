@@ -1,4 +1,6 @@
 import { DOMHelper } from './utils/dom';
+import { VisualAnchorManager } from './utils/som';
+import { PageExtractor } from './extractor';
 import { MessageToVSCode, MessageResponse, ConnectionStatus } from './types';
 
 class FloatingPanel {
@@ -205,6 +207,7 @@ class FloatingPanel {
           <button id="screenshot-element" class="secondary" title="选择元素并截图（带红框）">截图元素</button>
           <button id="copy-element" class="secondary" title="选择元素并复制其代码">复制元素</button>
           <button id="send-screenshot" class="secondary" title="截取当前页面并发送到 VS Code">全屏截图</button>
+          <button id="clone-page" class="secondary" title="复刻当前页面：注入锚点 -> 截图 -> 提取数据 -> 发送">复刻页面</button>
         </div>
         <div id="connection-status" class="connection-status">
           <span class="status-dot"></span>
@@ -234,6 +237,9 @@ class FloatingPanel {
 
     const sendScreenshotButton = document.getElementById('send-screenshot');
     sendScreenshotButton?.addEventListener('click', () => this.handleSendScreenshotClick());
+
+    const clonePageButton = document.getElementById('clone-page');
+    clonePageButton?.addEventListener('click', () => this.handleClonePageClick());
 
     const closeButton = document.getElementById('close-panel');
     closeButton?.addEventListener('click', () => this.togglePanel());
@@ -558,6 +564,39 @@ class FloatingPanel {
   private async handleSendScreenshotClick(): Promise<void> {
     // 普通截图，不带额外文本
     await this.handleCaptureWithText(null);
+  }
+
+  private async handleClonePageClick(): Promise<void> {
+    this.setUIVisibility(false);
+    this.showNotification('正在准备复刻...', 'success');
+
+    // 1. 注入视觉锚点
+    VisualAnchorManager.injectAnchors();
+
+    // 给浏览器一点时间渲染锚点
+    await this.delay(100);
+
+    // 2. 截图
+    chrome.runtime.sendMessage({ action: 'captureScreenshot' }, async (response) => {
+      // 3. 移除锚点 (截图完成后立即移除，恢复原始界面)
+      VisualAnchorManager.removeAnchors();
+      this.setUIVisibility(true);
+
+      if (chrome.runtime.lastError || !response || !response.success || !response.dataUrl) {
+        this.showError('截图失败，无法继续复刻');
+        return;
+      }
+
+      try {
+        // 4. 复制到剪贴板
+        await this.copyToClipboard(response.dataUrl, null);
+        this.showSuccess('✅ 带有标注的截图已复制到剪贴板');
+
+      } catch (e) {
+        console.error('复刻处理失败:', e);
+        this.showError('复刻处理失败: ' + e);
+      }
+    });
   }
 
   // 统一的截图处理方法，支持附加文本和高亮元素

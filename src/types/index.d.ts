@@ -1,10 +1,23 @@
 // 消息类型定义
+export interface ClonePagePackage {
+  project_name: string;
+  viewport: { width: number; height: number };
+  screenshot: string;
+  structure: string; // Changed to string (Pseudo-HTML)
+  global_tokens: {
+    colors: string[];
+    fonts: string[];
+  };
+}
+
 interface MessageToVSCode {
   action: 'sendToVSCode';
-  content: string;
-  filename: string;
-  savePath?: string;  // 新增：保存路径
-  type?: 'save' | 'patch'; // 新增：操作类型
+  content?: string;
+  filename?: string;
+  savePath?: string;
+  type?: 'save' | 'patch' | 'clonePage'; // 新增 clonePage
+  package?: ClonePagePackage; // 新增
+  dataUrl?: string; // 截图数据
 }
 
 interface MessageResponse {
