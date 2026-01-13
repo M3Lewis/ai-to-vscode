@@ -18,10 +18,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   startWebSocketServer(context);
 
-  const executeClineCmd = vscode.commands.registerCommand(
-    'ai-vscode-bridge.executeCline',
-    executeClineTask
-  );
+
 
   const toggleServerCmd = vscode.commands.registerCommand(
     'ai-vscode-bridge.toggleServer',
@@ -34,7 +31,7 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
-  context.subscriptions.push(executeClineCmd, toggleServerCmd);
+  context.subscriptions.push(toggleServerCmd);
 }
 
 function startWebSocketServer(context: vscode.ExtensionContext) {
@@ -66,6 +63,8 @@ function startWebSocketServer(context: vscode.ExtensionContext) {
             await handleSaveFile(ws, message);
           } else if (message.type === 'patchFile') {
             await handlePatchFile(ws, message);
+          } else if (message.type === 'clonePage') {
+            await handleClonePage(ws, message);
           }
         } catch (error) {
           console.error('处理消息失败:', error);
@@ -328,55 +327,47 @@ async function handlePatchFile(ws: WebSocket, message: any): Promise<void> {
   }
 }
 
+async function handleClonePage(ws: WebSocket, message: any): Promise<void> {
+  const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+  if (!workspaceFolder) {
+    ws.send(JSON.stringify({ type: 'error', message: '未打开工作区' }));
+    return;
+  }
 
-async function executeClineTask() {
   try {
-    const clineExtension = vscode.extensions.getExtension('saoudrizwan.claude-dev');
-    if (!clineExtension) {
-      const install = await vscode.window.showErrorMessage(
-        'Cline插件未安装',
-        '安装Cline'
-      );
-      if (install) {
-        vscode.env.openExternal(
-          vscode.Uri.parse('https://marketplace.visualstudio.com/items?itemName=saoudrizwan.claude-dev')
-        );
-      }
-      return;
+    if (!message.package) {
+      throw new Error('收到的复刻数据包为空 (message.package is undefined)');
     }
 
-    await clineExtension.activate();
-
-    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-    if (!workspaceFolder) {
-      vscode.window.showErrorMessage('请先打开一个工作区');
-      return;
+    const tempDir = path.join(workspaceFolder.uri.fsPath, 'v2c_temp');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
     }
 
-    const planPath = vscode.Uri.joinPath(workspaceFolder.uri, 'plan.md');
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `clone_package_${timestamp}.json`;
+    const filePath = path.join(tempDir, filename);
 
-    try {
-      await vscode.workspace.fs.stat(planPath);
-    } catch {
-      vscode.window.showErrorMessage('plan.md文件不存在');
-      return;
+    const jsonContent = JSON.stringify(message.package, null, 2);
+    if (!jsonContent) {
+      throw new Error('无法序列化复刻数据包');
     }
 
-    const planContent = await vscode.workspace.fs.readFile(planPath);
-    const planText = Buffer.from(planContent).toString('utf-8');
+    await fs.promises.writeFile(filePath, jsonContent, 'utf8');
 
-    await vscode.env.clipboard.writeText(planText);
-    await vscode.commands.executeCommand('cline.plusButtonClicked');
+    ws.send(JSON.stringify({ type: 'success', filename, path: filePath, note: '复刻数据包已保存' }));
+    vscode.window.showInformationMessage(`✅ 复刻数据包已保存：${filename}`);
 
-    vscode.window.showInformationMessage(
-      '📋 plan.md内容已复制到剪贴板，请在Cline中粘贴'
-    );
+    // 打开文件
+    const doc = await vscode.workspace.openTextDocument(filePath);
+    await vscode.window.showTextDocument(doc);
 
-  } catch (error) {
-    vscode.window.showErrorMessage(`❌ 执行失败：${error}`);
-    console.error('执行Cline任务失败:', error);
+  } catch (error: any) {
+    ws.send(JSON.stringify({ type: 'error', message: error.message }));
+    vscode.window.showErrorMessage(`❌ 保存复刻数据失败：${error.message}`);
   }
 }
+
 
 function updateStatusBar(running: boolean, port?: number) {
   if (running && port) {

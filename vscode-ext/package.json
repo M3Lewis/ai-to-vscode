@@ -3,7 +3,7 @@
   "displayName": "AI to VSCode Bridge",
   "version": "1.0.0",
   "publisher": "your-publisher-name",
-  "description": "接收来自Chrome的AI对话内容并与Cline集成",
+  "description": "接收来自Chrome的AI对话内容并保存到工作区",
   "repository": {
     "type": "git",
     "url": "https://github.com/yourusername/ai-vscode-bridge.git"
@@ -21,31 +21,15 @@
   "activationEvents": [
     "onStartupFinished"
   ],
-  "extensionDependencies": [
-    "saoudrizwan.claude-dev"
-  ],
+
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
-      {
-        "command": "ai-vscode-bridge.executeCline",
-        "title": "执行Cline任务",
-        "icon": "$(play)"
-      },
       {
         "command": "ai-vscode-bridge.toggleServer",
         "title": "切换WebSocket服务器"
       }
     ],
-    "menus": {
-      "editor/title": [
-        {
-          "command": "ai-vscode-bridge.executeCline",
-          "when": "resourceFilename == plan.md",
-          "group": "navigation"
-        }
-      ]
-    },
     "configuration": {
       "title": "AI VSCode Bridge",
       "properties": {
