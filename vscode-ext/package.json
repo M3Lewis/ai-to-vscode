@@ -1,0 +1,60 @@
+{
+  "name": "ai-vscode-bridge",
+  "displayName": "AI to VSCode Bridge",
+  "version": "1.0.0",
+  "publisher": "your-publisher-name",
+  "description": "接收来自Chrome的AI对话内容并保存到工作区",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/ai-vscode-bridge.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/ai-vscode-bridge/issues"
+  },
+  "homepage": "https://github.com/yourusername/ai-vscode-bridge#readme",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "ai-vscode-bridge.toggleServer",
+        "title": "切换WebSocket服务器"
+      }
+    ],
+    "configuration": {
+      "title": "AI VSCode Bridge",
+      "properties": {
+        "aiVSCodeBridge.port": {
+          "type": "number",
+          "default": 8765,
+          "description": "WebSocket服务器端口"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.0",
+    "@types/node": "^18.0.0",
+    "@types/vscode": "^1.80.0",
+    "@types/ws": "^8.5.0",
+    "@vscode/test-electron": "^2.3.0",
+    "typescript": "^5.3.0"
+  },
+  "dependencies": {
+    "ws": "^8.14.0"
+  }
+}
