@@ -221,6 +221,7 @@ class FloatingPanel {
         <div class="button-group" style="margin-top: 8px;">
           <button id="screenshot-element" class="secondary" title="选择元素并截图（带红框）">截图元素</button>
           <button id="copy-element" class="secondary" title="选择元素并复制其代码">复制元素</button>
+          <button id="copy-element-deep" class="secondary" title="选择元素并复制其完整 HTML（包含子元素）">复制元素(含子元素)</button>
           <button id="send-screenshot" class="secondary" title="截取当前页面并发送到 VS Code">全屏截图</button>
           <button id="clone-page" class="secondary" title="复刻当前页面：注入锚点 -> 截图 -> 提取数据 -> 发送">复刻页面</button>
           <button id="sync-ai-studio-drive" class="secondary" title="同步 AI Studio Drive 中的所有文件到本地">同步 Build 文件</button>
@@ -251,6 +252,9 @@ class FloatingPanel {
 
     const copyElementButton = document.getElementById('copy-element');
     copyElementButton?.addEventListener('click', () => this.handleCopyElementClick());
+
+    const copyElementDeepButton = document.getElementById('copy-element-deep');
+    copyElementDeepButton?.addEventListener('click', () => this.handleCopyElementDeepClick());
 
     const sendScreenshotButton = document.getElementById('send-screenshot');
     sendScreenshotButton?.addEventListener('click', () => this.handleSendScreenshotClick());
@@ -598,7 +602,7 @@ class FloatingPanel {
   }
 
   private handleCopyElementClick(): void {
-    // 濡傛灉鏈変笂娆￠€変腑鐨勫厓绱狅紝涓旇鍏冪礌浠嶅湪鏂囨。涓紝鐩存帴浣跨敤
+    // 如果有上次选中的元素，且该元素仍在文档中，直接使用
     if (this.lastSelectedElement && document.body.contains(this.lastSelectedElement)) {
       const info = ElementPicker.getElementInfo(this.lastSelectedElement);
       navigator.clipboard.writeText(info).then(() => {
@@ -606,13 +610,14 @@ class FloatingPanel {
       }).catch(err => {
         this.showError('复制失败: ' + err);
       });
+      // 关键修改：使用后立即清除缓存
+      this.lastSelectedElement = null;
       return;
     }
 
     if (!this.picker) {
       this.picker = new ElementPicker((el) => {
-        // 鍚屾椂涔熸洿鏂拌褰?
-        this.lastSelectedElement = el;
+        // 修改：不再更新 lastSelectedElement
         const info = ElementPicker.getElementInfo(el);
         navigator.clipboard.writeText(info).then(() => {
           this.showSuccess('Element info copied to clipboard.');
@@ -623,6 +628,50 @@ class FloatingPanel {
     }
     this.picker.start();
     this.showNotification('Select an element to copy (Esc to cancel).', 'success');
+  }
+
+  private handleCopyElementDeepClick(): void {
+    // 如果有上次选中的元素，且该元素仍在文档中，直接使用
+    if (this.lastSelectedElement && document.body.contains(this.lastSelectedElement)) {
+      const html = this.getElementDeepHtml(this.lastSelectedElement);
+      navigator.clipboard.writeText(html).then(() => {
+        this.showSuccess('已复制元素 HTML (含子元素)。');
+      }).catch(err => {
+        this.showError('复制失败: ' + err);
+      });
+      // 关键修改：使用后立即清除缓存
+      this.lastSelectedElement = null;
+      return;
+    }
+
+    if (!this.picker) {
+      this.picker = new ElementPicker((el) => {
+        // 修改：不再更新 lastSelectedElement
+        const html = this.getElementDeepHtml(el);
+        navigator.clipboard.writeText(html).then(() => {
+          this.showSuccess('元素 HTML 已复制到剪贴板。');
+        }).catch(err => {
+          this.showError('复制失败: ' + err);
+        });
+      });
+    }
+    this.picker.start();
+    this.showNotification('请选择要复制的元素 (含子元素) (按 Esc 取消)。', 'success');
+  }
+
+  private getElementDeepHtml(el: HTMLElement): string {
+    // 克隆节点以避免修改页面上的实际元素
+    const clone = el.cloneNode(true) as HTMLElement;
+
+    // 使用 TreeWalker 移除所有注释节点
+    const walker = document.createTreeWalker(clone, NodeFilter.SHOW_COMMENT);
+    const comments: Node[] = [];
+    while (walker.nextNode()) {
+      comments.push(walker.currentNode);
+    }
+    comments.forEach(c => c.parentNode?.removeChild(c));
+
+    return clone.outerHTML;
   }
 
   private async handleSendScreenshotClick(): Promise<void> {

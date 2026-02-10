@@ -147,7 +147,7 @@ function broadcastConnectionStatus(connected: boolean) {
 
 function scheduleReconnect() {
   if (reconnectTimer) return;
-  reconnectTimer = setTimeout(() => {
+  reconnectTimer = window.setTimeout(() => {
     console.log('尝试重新连接...');
     connectWebSocket();
   }, 3000);
