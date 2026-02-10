@@ -444,4 +444,23 @@ export class DOMHelper {
       }
     });
   }
+
+  public static async waitForElement(selector: string, timeout: number = 5000): Promise<HTMLElement | null> {
+    const start = Date.now();
+    while (Date.now() - start < timeout) {
+      const el = document.querySelector<HTMLElement>(selector);
+      if (el) return el;
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    return null;
+  }
+
+  public static async waitForPredicate(predicate: () => boolean, timeout: number = 5000): Promise<boolean> {
+    const start = Date.now();
+    while (Date.now() - start < timeout) {
+      if (predicate()) return true;
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    return false;
+  }
 }
