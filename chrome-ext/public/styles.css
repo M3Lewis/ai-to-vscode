@@ -1,200 +1,81 @@
+/* ========================================
+   VS Code Bridge - Floating Panel
+   ======================================== */
+
 #ai-vscode-panel {
   position: fixed;
   bottom: 20px;
   right: 20px;
   z-index: 999999;
-  background: #1e1e1e;
-  border: 1px solid #3e3e3e;
-  border-radius: 8px;
-  padding: 16px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  min-width: 320px;
-  /* 增加宽度防止按钮文字折行 */
-}
-
-.panel-header {
-  color: #fff;
-  font-weight: 600;
-  margin-bottom: 12px;
-  cursor: move;
-}
-
-#filename-input {
-  width: 100%;
-  padding: 8px;
-  border: 1px solid #3e3e3e;
-  border-radius: 4px;
-  background: #2d2d2d;
-  color: #fff;
-  margin-bottom: 8px;
-}
-
-#send-to-vscode {
-  width: 100%;
-  background: #007acc;
-  color: #fff;
-  border: 1px solid transparent;
-  /* 统一盒模型 */
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 500;
-  box-sizing: border-box;
-  max-width: 100%;
-  white-space: nowrap;
-}
-
-#send-to-vscode:hover {
-  background: #005a9e;
-}
-
-.status {
-  margin-top: 8px;
-  font-size: 12px;
-  color: #888;
-}
-
-.status.connected {
-  color: #4ec9b0;
-}
-
-.panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  color: #fff;
-  font-weight: 600;
-  margin-bottom: 4px;
-  cursor: move;
-  user-select: none;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  color: #888;
-  font-size: 24px;
-  line-height: 1;
-  cursor: pointer;
+  background: #1a1a2e;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
   padding: 0;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  width: 280px;
+  overflow: hidden;
 }
 
-.close-btn:hover {
-  color: #fff;
-  background: #3e3e3e;
-  border-radius: 4px;
-}
+/* ---- Header ---- */
 
 .ai-vscode-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 4px;
+  padding: 10px 12px;
+  background: linear-gradient(135deg, #16213e 0%, #1a1a2e 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  cursor: move;
+  user-select: none;
+}
+
+.ai-vscode-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-vscode-header-right {
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 
 .ai-vscode-title {
   font-weight: 600;
-  font-size: 13px;
-  color: #fff;
+  font-size: 12px;
+  color: #e0e0e0;
+  letter-spacing: 0.3px;
 }
 
-.ai-vscode-toggle {
+.ai-vscode-toggle,
+.ai-vscode-close {
   border: none;
-  background: #2d2d2d;
+  background: transparent;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 13px;
   width: 24px;
   height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #888;
+  color: #666;
   border-radius: 6px;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  margin-right: 4px;
+  transition: all 0.15s ease;
 }
 
-.ai-vscode-close {
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  font-size: 14px;
-  padding: 4px 8px;
-  color: #888;
-}
-
-.ai-vscode-toggle:hover {
-  background: #3e3e3e;
-  color: #fff;
-  transform: scale(1.1);
-}
-
+.ai-vscode-toggle:hover,
 .ai-vscode-close:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ccc;
 }
 
-#prompt-section {
-  margin-top: 6px;
-  max-height: 260px;
-  /* 展开时的最大高度，可按需要调 */
-  overflow: auto;
-  transition: max-height 0.2s ease;
-}
-
-/* 折叠状态：高度为 0，内容隐藏 */
-#prompt-section.collapsed {
-  max-height: 0;
-  overflow: hidden;
-}
-
-.prompt-section-header {
-  color: #fff;
-  font-size: 12px;
-  margin-bottom: 4px;
-}
-
-/* 提示词按钮容器本身保持不变，按你原来的样式来 */
-.prompt-buttons {
-  margin-top: 4px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-/* 如果你之前的 .prompt-btn 有样式，也保持不变 */
-.prompt-btn {
-  padding: 8px 12px;
-  background: #6c5ce7;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-  transition: all 0.2s;
-  text-align: left;
-}
-
-.prompt-btn:hover {
-  background: #5f4dd1;
-}
-
-.ai-vscode-footer {
-  margin-top: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
+/* ---- Connection Status (in header) ---- */
 
 .connection-status {
-  font-size: 12px;
-  color: #888;
+  font-size: 11px;
+  color: #666;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -208,77 +89,198 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background-color: #888;
+  background-color: #555;
+  transition: background-color 0.3s ease;
 }
 
+.status-dot.active,
 .connection-status.connected .status-dot {
   background-color: #4ec9b0;
+  box-shadow: 0 0 6px rgba(78, 201, 176, 0.5);
 }
+
+/* ---- Filename Preview ---- */
 
 .filename-preview {
   font-size: 11px;
   color: #888;
-  padding: 6px 8px;
-  background: #2d2d2d;
-  border-radius: 4px;
-  margin-bottom: 8px;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
   word-break: break-all;
   display: none;
 }
 
-.button-group {
+/* ---- Panel Body ---- */
+
+.panel-body {
+  padding: 8px;
   display: flex;
-  gap: 8px;
-  width: 100%;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 800px;
+  transition: max-height 0.2s ease, padding 0.2s ease, opacity 0.2s ease;
+  overflow: hidden;
 }
 
-.button-group button {
-  flex: 1;
-  padding: 8px 4px;
-  font-size: 12px;
+.panel-body.collapsed {
+  max-height: 0;
+  padding: 0 8px;
+  opacity: 0;
+}
+
+/* ---- Button Sections ---- */
+
+.btn-section {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.btn-section-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 6px;
+  padding-left: 2px;
+}
+
+.btn-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+.btn-grid.btn-grid-sub {
+  margin-top: 4px;
+}
+
+/* Full-width for odd-last button in a grid */
+.btn-grid button:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
+/* ---- Buttons ---- */
+
+.btn-grid button,
+.btn-section button {
+  padding: 7px 8px;
+  font-size: 11px;
   border-radius: 6px;
   cursor: pointer;
   font-weight: 500;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
   white-space: nowrap;
   box-sizing: border-box;
-  /* 确保内边距不影响总宽度 */
+  text-align: center;
+  line-height: 1.3;
 }
 
 button.primary {
-  background: #007acc;
+  background: linear-gradient(135deg, #0078d4 0%, #006cbd 100%);
   color: #fff;
-  border: 1px solid transparent;
-  /* 统一盒模型 */
+  border: none;
+  width: 100%;
 }
 
 button.primary:hover {
-  background: #005a9e;
+  background: linear-gradient(135deg, #006cbd 0%, #005a9e 100%);
+  box-shadow: 0 2px 8px rgba(0, 120, 212, 0.3);
 }
 
 button.secondary {
-  background: #3e3e3e;
-  color: #fff;
-  border: 1px solid #555;
+  background: rgba(255, 255, 255, 0.06);
+  color: #ccc;
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 button.secondary:hover {
-  background: #4e4e4e;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.15);
 }
+
+button.secondary:active {
+  background: rgba(255, 255, 255, 0.14);
+  transform: scale(0.97);
+}
+
+/* ---- Prompt Section ---- */
+
+#prompt-section {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  padding: 8px;
+}
+
+#prompt-section .prompt-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+}
+
+#prompt-section .prompt-section-header .ai-vscode-toggle {
+  font-size: 12px;
+  width: 20px;
+  height: 20px;
+}
+
+#prompt-section .prompt-buttons {
+  max-height: 200px;
+  overflow: auto;
+  transition: max-height 0.2s ease, opacity 0.2s ease, margin-top 0.2s ease;
+  margin-top: 6px;
+}
+
+#prompt-section.collapsed .prompt-buttons {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  margin-top: 0;
+}
+
+.prompt-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.prompt-btn {
+  padding: 6px 10px;
+  background: rgba(108, 92, 231, 0.15);
+  color: #b8b0f0;
+  border: 1px solid rgba(108, 92, 231, 0.2);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 11px;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+
+.prompt-btn:hover {
+  background: rgba(108, 92, 231, 0.25);
+  color: #d4cef8;
+  border-color: rgba(108, 92, 231, 0.35);
+}
+
+/* ---- Notification ---- */
 
 .notification {
   position: fixed;
   top: 20px;
   left: 50%;
   transform: translateX(-50%);
-  padding: 12px 24px;
+  padding: 10px 20px;
   border-radius: 8px;
   color: white;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   z-index: 1000000;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  transition: all 0.3s ease;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
   animation: slideDown 0.3s ease;
 }
 
@@ -287,7 +289,6 @@ button.secondary:hover {
     transform: translate(-50%, -20px);
     opacity: 0;
   }
-
   to {
     transform: translate(-50%, 0);
     opacity: 1;
@@ -295,9 +296,9 @@ button.secondary:hover {
 }
 
 .notification.success {
-  background: #2ecc71;
+  background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
 }
 
 .notification.error {
-  background: #e74c3c;
+  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
 }

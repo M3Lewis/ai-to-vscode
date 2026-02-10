@@ -199,37 +199,56 @@ class FloatingPanel {
     this.panel.innerHTML = `
     <div class="panel-container">
       <div class="ai-vscode-header">
-        <span class="ai-vscode-title">发送到VS Code</span>
-        <button id="toggle-prompts" class="ai-vscode-toggle" title="折叠/展开提示词">▾</button>
-        <button id="close-panel" class="ai-vscode-close">✕</button>
+        <div class="ai-vscode-header-left">
+          <span class="ai-vscode-title">⚡ VS Code Bridge</span>
+          <div id="connection-status" class="connection-status">
+            <span class="status-dot"></span>
+            <span class="status-text">未连接</span>
+          </div>
+        </div>
+        <div class="ai-vscode-header-right">
+          <button id="toggle-panel-body" class="ai-vscode-toggle" title="折叠/展开面板">▾</button>
+          <button id="close-panel" class="ai-vscode-close" title="关闭面板">✕</button>
+        </div>
       </div>
+
       <div id="filename-preview" class="filename-preview">文件名预览...</div>
 
-      <div id="prompt-section">
-        <div class="prompt-section-header">
-          <span>常用提示词</span>
+      <div class="panel-body">
+        <div class="btn-section">
+          <div class="btn-section-label">代码操作</div>
+          <button id="send-to-vscode" class="primary" title="复制剪贴板内容并保存到 VS Code">复制并保存</button>
+          <div class="btn-grid btn-grid-sub">
+            <button id="create-files-from-content" class="secondary" title="识别代码块中的路径并直接创建文件">识别并创建</button>
+            <button id="patch-files-from-content" class="secondary" title="智能识别路径并局部更新文件内容">局部更新</button>
+          </div>
         </div>
-        <div id="prompt-buttons" class="prompt-buttons"></div>
-      </div>
 
-      <div class="ai-vscode-footer">
-        <div class="button-group">
-          <button id="send-to-vscode" class="primary">复制并保存</button>
-          <button id="create-files-from-content" class="secondary" title="识别代码块中的路径并直接创建文件">识别并创建</button>
-          <button id="patch-files-from-content" class="secondary" title="智能识别路径并局部更新文件内容">局部更新</button>
+        <div class="btn-section">
+          <div class="btn-section-label">元素工具</div>
+          <div class="btn-grid">
+            <button id="screenshot-element" class="secondary" title="选择元素并截图（带红框）">📷 截图元素</button>
+            <button id="copy-element" class="secondary" title="选择元素并复制其代码">📋 复制元素</button>
+            <button id="copy-element-deep" class="secondary" title="选择元素并复制其完整 HTML（包含子元素）">📄 复制(含子)</button>
+            <button id="send-screenshot" class="secondary" title="截取当前页面并发送到 VS Code">🖥️ 全屏截图</button>
+            <button id="clone-page" class="secondary" title="复刻当前页面：注入锚点 -> 截图 -> 提取数据 -> 发送">🔄 复刻页面</button>
+          </div>
         </div>
-        <div class="button-group" style="margin-top: 8px;">
-          <button id="screenshot-element" class="secondary" title="选择元素并截图（带红框）">截图元素</button>
-          <button id="copy-element" class="secondary" title="选择元素并复制其代码">复制元素</button>
-          <button id="copy-element-deep" class="secondary" title="选择元素并复制其完整 HTML（包含子元素）">复制元素(含子元素)</button>
-          <button id="send-screenshot" class="secondary" title="截取当前页面并发送到 VS Code">全屏截图</button>
-          <button id="clone-page" class="secondary" title="复刻当前页面：注入锚点 -> 截图 -> 提取数据 -> 发送">复刻页面</button>
-          <button id="sync-ai-studio-drive" class="secondary" title="同步 AI Studio Drive 中的所有文件到本地">同步 Build 文件</button>
-          <button id="export-aistudio-history" class="secondary" title="导出 AI Studio 所有历史对话为 Markdown 文件">导出对话</button>
+
+        <div class="btn-section">
+          <div class="btn-section-label">AI Studio</div>
+          <div class="btn-grid">
+            <button id="sync-ai-studio-drive" class="secondary" title="同步 AI Studio Drive 中的所有文件到本地">📥 同步文件</button>
+            <button id="export-aistudio-history" class="secondary" title="导出 AI Studio 所有历史对话为 Markdown 文件">📝 导出对话</button>
+          </div>
         </div>
-        <div id="connection-status" class="connection-status">
-          <span class="status-dot"></span>
-          <span class="status-text">未连接</span>
+
+        <div id="prompt-section">
+          <div class="btn-section-label prompt-section-header">
+            <span>提示词</span>
+            <button id="toggle-prompts" class="ai-vscode-toggle" title="折叠/展开提示词">▾</button>
+          </div>
+          <div id="prompt-buttons" class="prompt-buttons"></div>
         </div>
       </div>
     </div>
@@ -271,7 +290,26 @@ class FloatingPanel {
     const closeButton = document.getElementById('close-panel');
     closeButton?.addEventListener('click', () => this.togglePanel());
 
-    // 折叠按钮逻辑
+    // 面板整体折叠按钮逻辑
+    const togglePanelBodyBtn = document.getElementById('toggle-panel-body') as HTMLButtonElement | null;
+    const panelBody = this.panel.querySelector('.panel-body') as HTMLElement | null;
+
+    if (togglePanelBodyBtn && panelBody) {
+      togglePanelBodyBtn.addEventListener('click', () => {
+        const collapsed = panelBody.classList.toggle('collapsed');
+        togglePanelBodyBtn.textContent = collapsed ? '▸' : '▾';
+        chrome.storage.local.set({ panelBodyCollapsed: collapsed });
+      });
+
+      chrome.storage.local.get('panelBodyCollapsed', (res) => {
+        if (res.panelBodyCollapsed) {
+          panelBody.classList.add('collapsed');
+          togglePanelBodyBtn.textContent = '▸';
+        }
+      });
+    }
+
+    // 提示词折叠按钮逻辑
     const toggleBtn = document.getElementById('toggle-prompts') as HTMLButtonElement | null;
     const promptSection = document.getElementById('prompt-section');
 
