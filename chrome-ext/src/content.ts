@@ -1699,6 +1699,15 @@ class FloatingPanel {
       }
 
       const element = el as HTMLElement;
+
+      // Filter: 过滤掉不需要的元素 (搜索来源、引用容器)
+      if (element.classList && (
+        element.classList.contains('search-entry-container') ||
+        element.classList.contains('search-sources')
+      )) {
+        return '';
+      }
+
       const tagName = element.tagName.toLowerCase();
       let innerText = '';
 
@@ -1731,7 +1740,25 @@ class FloatingPanel {
           return `~~${innerText}~~`;
 
         case 'a':
+          const cleanText = innerText.trim();
           const href = element.getAttribute('href') || '';
+
+          // Filter: 过滤引用链接
+          // 策略 1: 文本是纯数字或 [数字]，且链接包含 google/vertex 等跳转特征，或仅为锚点
+          // 常见格式: "1", "[1]", "Source 1"
+          const isCitationText = /^(\[\s*)?[\d,\s]+(\s*\])?$/.test(cleanText) || /^source\s*\d+$/i.test(cleanText);
+          const isRedirectLink = /google\.com\/url|vertexaisearch/i.test(href);
+
+          if (isCitationText && (isRedirectLink || href === '#' || href.startsWith('#'))) {
+             return '';
+          }
+
+          // 策略 2: 显式属性过滤
+          const ariaLabel = element.getAttribute('aria-label') || '';
+          if (/citation|source|reference/i.test(ariaLabel)) {
+            return '';
+          }
+
           return `[${innerText}](${href})`;
 
         case 'img':
@@ -1745,7 +1772,14 @@ class FloatingPanel {
 
         case 'ul':
           let ulResult = '';
-          element.querySelectorAll(':scope > li').forEach(li => {
+          const listItems = element.querySelectorAll(':scope > li');
+
+          // Fallback: 如果没有 li 元素（可能是非标准结构），直接返回文本内容，防止内容丢失
+          if (listItems.length === 0) {
+            return innerText + '\n\n';
+          }
+
+          listItems.forEach(li => {
             // 处理列表项内部的递归
             let liContent = '';
             li.childNodes.forEach(child => liContent += processNode(child));
@@ -1755,7 +1789,14 @@ class FloatingPanel {
 
         case 'ol':
           let olResult = '';
-          element.querySelectorAll(':scope > li').forEach((li, idx) => {
+          const orderedItems = element.querySelectorAll(':scope > li');
+
+          // Fallback: 如果没有 li 元素，直接返回文本内容
+          if (orderedItems.length === 0) {
+            return innerText + '\n\n';
+          }
+
+          orderedItems.forEach((li, idx) => {
             let liContent = '';
             li.childNodes.forEach(child => liContent += processNode(child));
             olResult += `${idx + 1}. ${liContent.trim()}\n`;
