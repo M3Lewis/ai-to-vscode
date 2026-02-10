@@ -1,0 +1,44 @@
+# General
+.DS_Store
+.Thumb.db
+.idea
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.env
+
+# Agent/AI working dirs
+.trellis/
+.agents/
+.claude/
+
+# Node
+node_modules/
+dist/
+build/
+
+# Setup
+.gemini/
+.agent/
+openspec/
+
+# Chrome Extension
+chrome-ext/dist/
+chrome-ext/build/
+chrome-ext/.cache/
+chrome-ext/node_modules/
+chrome-ext/memory-bank/
+
+# VS Code Extension
+vscode-ext/out/
+vscode-ext/node_modules/
+vscode-ext/.vscode-test/
+vscode-ext/*.vsix
+vscode-ext/.DS_Store
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
