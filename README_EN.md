@@ -78,18 +78,54 @@ This extension uses a **Chrome Extension + Local Server** architecture to commun
 2. **VS Code**
 3. **Local Server**: A local service listening on a specific port (default 3000 or other configured port) is required to receive requests from the extension.
 
-### Install the Extension
-1. Clone this project:
+### Install & Run
+
+#### 1. Chrome Extension
+1. Go to the `chrome-ext` directory:
    ```bash
-   git clone <repository-url>
+   cd chrome-ext
    ```
 2. Install dependencies and build:
    ```bash
-   cd chrome-ext
    npm install
    npm run build
    ```
+3. Load in Chrome:
+   - Open `chrome://extensions/`
+   - Enable **"Developer mode"** in the top right
+   - Click **"Load unpacked"**
    - Select the `chrome-ext/dist` directory
+
+#### 2. VS Code Extension
+1. Go to the `vscode-ext` directory:
+   ```bash
+   cd vscode-ext
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Run the extension:
+   - Open the `vscode-ext` folder in VS Code
+   - Press `F5` to start a debugging instance
+
+## 📦 Build & Packaging
+
+Used to generate artifacts for publishing to GitHub Releases.
+
+### 1. VS Code Extension (`.vsix`)
+Run in the `vscode-ext` directory:
+```bash
+npx vsce package
+```
+A `.vsix` file will be generated upon successful execution.
+
+### 2. Chrome Extension (`.zip`)
+1. Run in the `chrome-ext` directory:
+   ```bash
+   npm run build
+   ```
+2. Compress the generated `dist` folder into `.zip` format. Users can use it by loading this zip file or the unzipped folder.
 
 ## 🖌️ Interface & Interaction
 

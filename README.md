@@ -78,18 +78,54 @@
 2. **VS Code**
 3. **本地服务端**: 需要运行一个监听特定端口（默认 3000或其他配置端口）的本地服务，用于接收扩展的请求。
 
-### 安装扩展
-1. 克隆本项目：
+### 安装并运行
+
+#### 1. Chrome 扩展 (Chrome Extension)
+1. 进入 `chrome-ext` 目录：
    ```bash
-   git clone <repository-url>
+   cd chrome-ext
    ```
 2. 安装依赖并构建：
    ```bash
-   cd chrome-ext
    npm install
    npm run build
    ```
+3. 在 Chrome 中加载：
+   - 打开 `chrome://extensions/`
+   - 开启右上角的 **"开发者模式"**
+   - 点击 **"加载已解压的扩展程序"**
    - 选择 `chrome-ext/dist` 目录
+
+#### 2. VS Code 扩展 (VS Code Extension)
+1. 进入 `vscode-ext` 目录：
+   ```bash
+   cd vscode-ext
+   ```
+2. 安装依赖：
+   ```bash
+   npm install
+   ```
+3. 运行扩展：
+   - 在 VS Code 中打开 `vscode-ext` 文件夹
+   - 按 `F5` 启动调试实例
+
+## 📦 构建与打包 (Build & Packaging)
+
+用于生成发布到 GitHub Release 的产物。
+
+### 1. VS Code 扩展 (`.vsix`)
+在 `vscode-ext` 目录下运行：
+```bash
+npx vsce package
+```
+执行成功后将生成 `.vsix` 文件。
+
+### 2. Chrome 扩展 (`.zip`)
+1. 在 `chrome-ext` 目录下运行：
+   ```bash
+   npm run build
+   ```
+2. 将生成的 `dist` 文件夹压缩为 `.zip` 格式即可。用户可通过加载此压缩包或其中的解压文件夹来使用。
 
 ## 🖌️ 界面与交互
 
