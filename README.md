@@ -204,5 +204,4 @@
 ### 目录结构
 
 - `chrome-ext/`: Chrome 扩展源代码 (React/TypeScript)
-- `openspec/`: 变更管理工件 (Changes, Specs)
-- `.agent/`: AI Agent 技能与工作流定义
+- `vscode-ext/`: VS Code 扩展源代码 (TypeScript)
