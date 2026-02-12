@@ -51,7 +51,7 @@
 |                                                     |          |                                  |
 |  +-------------------+      +--------------------+  |  HTTP    |  +-------------+    +---------+  |
 |  |     AI Website    |      |  Extension Content |  |  POST    |  | Local Server|    | VS Code |  |
-|  | (ChatGPT/Claude)  |----->|       Script       |--|--------->|  | (Port 3000) |--> | Editor  |  |
+|  | (ChatGPT/Claude)  |----->|       Script       |--|--------->|  | (Port 8765) |--> | Editor  |  |
 |  +-------------------+      |  (Floating Panel)  |  |          |  +-------------+    +---------+  |
 |                             +--------------------+  |          |         |                |       |  |
 |                                        ^            |          |         v                v       |  |
