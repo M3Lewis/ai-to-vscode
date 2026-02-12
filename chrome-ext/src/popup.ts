@@ -1,3 +1,5 @@
+import { setLanguage, getLanguage, t, applyI18n, Language } from './i18n';
+
 interface SiteConfig {
   hostname: string;
   copyButtonSelector: string;
@@ -19,6 +21,7 @@ interface Settings {
   siteConfigs: SiteConfig[];
   promptFiles?: PromptFile[];  // 提示词文件列表
   savePath?: string;
+  language?: Language;
 }
 
 // 修改原来的 ButtonCandidate 接口，去掉 element 属性
@@ -37,6 +40,7 @@ interface DraftSettings {
   showOnAllSites?: boolean;
   siteConfigs?: SiteConfig[];
   promptFiles?: PromptFile[];
+  language?: Language;
   timestamp?: number;
 }
 
@@ -68,6 +72,8 @@ class PopupManager {
   private importFileInput: HTMLInputElement | null = null;
   private smartFindButton: HTMLButtonElement | null = null;
   private statusDiv: HTMLElement | null = null;
+  private langToggle: HTMLButtonElement | null = null;
+
 
   private configList: HTMLElement | null = null;
   private configHostnameInput: HTMLInputElement | null = null;
@@ -126,6 +132,7 @@ class PopupManager {
     this.importFileInput = document.getElementById('import-file-input') as HTMLInputElement;
     this.smartFindButton = document.getElementById('smart-find-btn') as HTMLButtonElement;
     this.statusDiv = document.getElementById('status');
+    this.langToggle = document.getElementById('lang-toggle') as HTMLButtonElement;
 
     this.configList = document.getElementById('config-list');
     this.configHostnameInput = document.getElementById('config-hostname') as HTMLInputElement;
@@ -178,6 +185,14 @@ class PopupManager {
     const promptFiles: PromptFile[] = promptResult.promptFiles || [];
     settings.promptFiles = promptFiles;
 
+    // 初始化语言
+    const lang = settings.language || 'zh';
+    setLanguage(lang);
+    applyI18n();
+    if (this.langToggle) {
+      this.langToggle.textContent = lang === 'zh' ? 'English' : '中文';
+    }
+
     // 尝试加载草稿
     const draft = await chrome.storage.local.get('draftSettings');
 
@@ -193,7 +208,8 @@ class PopupManager {
           enabledUrls: draftData.enabledUrls ?? settings.enabledUrls,
           showOnAllSites: draftData.showOnAllSites ?? settings.showOnAllSites,
           siteConfigs: draftData.siteConfigs ?? settings.siteConfigs,
-          promptFiles: draftData.promptFiles ?? settings.promptFiles
+          promptFiles: draftData.promptFiles ?? settings.promptFiles,
+          language: draftData.language ?? settings.language
         };
 
         this.hasDraft = true;
@@ -263,6 +279,7 @@ class PopupManager {
       showOnAllSites: this.showOnAllSitesCheckbox?.checked || false,
       siteConfigs: this.currentSettings.siteConfigs,
       promptFiles: this.currentSettings.promptFiles,
+      language: this.currentSettings.language,
       timestamp: Date.now()
     };
 
@@ -278,7 +295,7 @@ class PopupManager {
     if (!this.urlList) return;
 
     if (this.currentSettings.enabledUrls.length === 0) {
-      this.urlList.innerHTML = '<div class="empty-state">暂无网站</div>';
+      this.urlList.innerHTML = `<div class="empty-state">${t('emptyUrlList')}</div>`;
       return;
     }
 
@@ -286,7 +303,7 @@ class PopupManager {
       .map((url, index) => `
         <div class="url-item">
           <span>${this.escapeHtml(url)}</span>
-          <button data-index="${index}">删除</button>
+          <button data-index="${index}">${t('delete')}</button>
         </div>
       `)
       .join('');
@@ -303,7 +320,7 @@ class PopupManager {
     if (!this.configList) return;
 
     if (this.currentSettings.siteConfigs.length === 0) {
-      this.configList.innerHTML = '<div class="empty-state">暂无自定义配置</div>';
+      this.configList.innerHTML = `<div class="empty-state">${t('emptyConfigList')}</div>`;
       return;
     }
 
@@ -317,11 +334,11 @@ class PopupManager {
             </div>
             ${config.responseContainerSelector ? `
               <div style="font-size: 10px; color: #666; margin-top: 2px;">
-                容器: ${this.escapeHtml(config.responseContainerSelector)}
+                ${t('containerLabel')} ${this.escapeHtml(config.responseContainerSelector)}
               </div>
             ` : ''}
           </div>
-          <button data-index="${index}">删除</button>
+          <button data-index="${index}">${t('delete')}</button>
         </div>
       `)
       .join('');
@@ -364,6 +381,30 @@ class PopupManager {
     // 路径记忆相关
     this.addMemButton?.addEventListener('click', () => this.addMemory());
     this.clearMemButton?.addEventListener('click', () => this.clearAllMemory());
+
+    // 语言切换
+    this.langToggle?.addEventListener('click', () => {
+      const current = getLanguage();
+      const next = current === 'zh' ? 'en' : 'zh';
+      setLanguage(next);
+      this.currentSettings.language = next;
+      // Update both for compatibility and to trigger content script listener
+      chrome.storage.sync.set({
+        language: next,
+        settings: this.currentSettings
+      });
+
+      applyI18n();
+      if (this.langToggle) {
+        this.langToggle.textContent = next === 'zh' ? 'English' : '中文';
+      }
+
+      // Re-render all dynamic lists
+      this.renderUrlList();
+      this.renderConfigList();
+      this.renderPromptList();
+      this.renderMemoryList();
+    });
   }
 
   private async smartFindCopyButtons(): Promise<void> {
@@ -372,7 +413,7 @@ class PopupManager {
       const activeTab = tabs[0];
 
       if (!activeTab || !activeTab.id) {
-        this.showStatus('无法获取当前标签页', 'error');
+        this.showStatus(t('cantGetTab'), 'error');
         return;
       }
 
@@ -476,7 +517,7 @@ class PopupManager {
     } catch (error) {
       console.error('智能查找失败:', error);
 
-      let errorMsg = '智能查找失败';
+      let errorMsg = t('smartFindFailed');
       if (error instanceof Error) {
         errorMsg += ': ' + error.message;
       }
@@ -494,13 +535,13 @@ class PopupManager {
     modal.innerHTML = `
       <div class="modal-content">
         <div class="modal-header">
-          <h3>🔍 正在扫描页面...</h3>
+          <h3>${t('smartFindScanning')}</h3>
           <button class="modal-close" id="modal-close">×</button>
         </div>
         <div class="modal-body">
           <div class="scanning-indicator">
             <div class="spinner"></div>
-            <p style="color: #888;">正在查找COPY按钮...</p>
+            <p style="color: #888;">${t('smartFindSearching')}</p>
           </div>
         </div>
       </div>
@@ -520,20 +561,20 @@ class PopupManager {
     modal.innerHTML = `
       <div class="modal-content">
         <div class="modal-header">
-          <h3>🔍 查找结果</h3>
+          <h3>${t('smartFindResult')}</h3>
           <button class="modal-close" id="modal-close">×</button>
         </div>
         <div class="modal-body">
           <div class="empty-result">
             <div class="empty-result-icon">😕</div>
-            <p>未找到COPY按钮</p>
+            <p>${t('smartFindEmpty')}</p>
             <p style="font-size: 12px; color: #666; margin-top: 8px;">
-              请确保当前页面有AI对话回答，并且有复制按钮
+              ${t('smartFindEmptyHint')}
             </p>
           </div>
         </div>
         <div class="modal-footer">
-          <button class="btn-cancel" id="modal-cancel">关闭</button>
+          <button class="btn-cancel" id="modal-cancel">${t('close')}</button>
         </div>
       </div>
     `;
@@ -551,12 +592,12 @@ class PopupManager {
     modal.innerHTML = `
       <div class="modal-content">
         <div class="modal-header">
-          <h3>🔍 找到 ${candidates.length} 个候选按钮</h3>
+          <h3>${t('foundCandidates', { count: candidates.length })}</h3>
           <button class="modal-close" id="modal-close">×</button>
         </div>
         <div class="modal-body">
           <p style="margin-bottom: 12px; font-size: 13px; color: #888;">
-            点击选择一个COPY按钮：
+            ${t('selectCandidate')}
           </p>
           ${candidates.map((c, i) => `
             <div class="button-candidate" data-index="${i}">
@@ -565,15 +606,15 @@ class PopupManager {
                 <div class="button-selector">${this.escapeHtml(c.selector)}</div>
                 <div class="button-details">
                   ${c.ariaLabel ? `aria-label: ${this.escapeHtml(c.ariaLabel)}` : ''}
-                  ${c.score ? ` • 相关度: ${c.score}分` : ''}
+                  ${c.score ? ` • ${t('score', { score: c.score })}` : ''}
                 </div>
               </div>
             </div>
           `).join('')}
         </div>
         <div class="modal-footer">
-          <button class="btn-cancel" id="modal-cancel">取消</button>
-          <button class="btn-confirm" id="modal-confirm" disabled>确定</button>
+          <button class="btn-cancel" id="modal-cancel">${t('cancel')}</button>
+          <button class="btn-confirm" id="modal-confirm" disabled>${t('confirm')}</button>
         </div>
       </div>
     `;
@@ -617,7 +658,7 @@ class PopupManager {
       this.configSelectorInput.value = this.selectedCandidate.selector;
     }
 
-    this.showStatus(`✅ 已选择: ${this.selectedCandidate.selector}`, 'success');
+    this.showStatus(t('selected', { selector: this.selectedCandidate.selector }), 'success');
     this.closeModal();
     this.selectedCandidate = null;
   }
@@ -634,17 +675,17 @@ class PopupManager {
   private addUrl(): void {
     const url = this.newUrlInput?.value.trim();
     if (!url) {
-      this.showStatus('请输入网站域名', 'error');
+      this.showStatus(t('enterDomain'), 'error');
       return;
     }
 
     if (!/^[\w\-.*]+(\.\w{2,})?$/.test(url) && url !== 'localhost') {
-      this.showStatus('请输入有效的域名格式', 'error');
+      this.showStatus(t('invalidDomain'), 'error');
       return;
     }
 
     if (this.currentSettings.enabledUrls.includes(url)) {
-      this.showStatus('该网站已存在', 'error');
+      this.showStatus(t('domainExists'), 'error');
       return;
     }
 
@@ -655,13 +696,13 @@ class PopupManager {
       this.newUrlInput.value = '';
     }
 
-    this.showStatus('✅ 已添加，请点击保存设置', 'success');
+    this.showStatus(t('addedClickSave'), 'success');
   }
 
   private removeUrl(index: number): void {
     this.currentSettings.enabledUrls.splice(index, 1);
     this.renderUrlList();
-    this.showStatus('✅ 已删除，请点击保存设置', 'success');
+    this.showStatus(t('deletedClickSave'), 'success');
   }
 
   private addConfig(): void {
@@ -670,7 +711,7 @@ class PopupManager {
     const container = this.configContainerInput?.value.trim();
 
     if (!hostname || !selector) {
-      this.showStatus('请输入域名和COPY按钮选择器', 'error');
+      this.showStatus(t('enterDomainAndSelector'), 'error');
       return;
     }
 
@@ -679,7 +720,7 @@ class PopupManager {
     );
 
     if (exists) {
-      this.showStatus('该网站配置已存在，请先删除', 'error');
+      this.showStatus(t('configExists'), 'error');
       return;
     }
 
@@ -696,13 +737,13 @@ class PopupManager {
     if (this.configSelectorInput) this.configSelectorInput.value = '';
     if (this.configContainerInput) this.configContainerInput.value = '';
 
-    this.showStatus('✅ 已添加配置，请点击保存设置', 'success');
+    this.showStatus(t('configAdded'), 'success');
   }
 
   private removeConfig(index: number): void {
     this.currentSettings.siteConfigs.splice(index, 1);
     this.renderConfigList();
-    this.showStatus('✅ 已删除，请点击保存设置', 'success');
+    this.showStatus(t('deletedClickSave'), 'success');
   }
 
   private async saveSettings(): Promise<void> {
@@ -766,11 +807,14 @@ class PopupManager {
       });
 
       // ✅ 保存成功，恢复按钮默认状态
-      saveBtn.textContent = '💾 保存设置';
+      // ✅ 保存成功，恢复按钮默认状态
+      saveBtn.textContent = '💾 ' + t('saveSettingsBtn').replace('💾 ', ''); // Hack to reuse key or just hardcode? key is 'saveSettingsBtn'
+      // Wait, 'saveSettingsBtn' is "💾 保存设置".
+      saveBtn.textContent = t('saveSettingsBtn');
       saveBtn.className = 'primary';  // 恢复蓝色样式
       saveBtn.disabled = false;
 
-      this.showStatus('✅ 设置已保存', 'success');
+      this.showStatus(t('savedSuccess'), 'success');
 
       // 清除草稿
       await chrome.storage.local.remove('draftSettings');
@@ -791,17 +835,18 @@ class PopupManager {
       } else {
         errorMessage = String(error);
       }
-      this.showStatus(`❌ 保存失败: ${errorMessage}`, 'error');
+      this.showStatus(`${t('saveFailed')}: ${errorMessage}`, 'error');
 
       // 出错也恢复按钮状态
-      saveBtn.textContent = '💾 保存设置';
+      // 出错也恢复按钮状态
+      saveBtn.textContent = t('saveSettingsBtn');
       saveBtn.className = 'primary';
     }
   }
 
 
   private async resetToDefaults(): Promise<void> {
-    if (!confirm('确定要恢复默认设置吗？所有自定义配置将被清除。')) {
+    if (!confirm(t('confirmReset'))) {
       return;
     }
 
@@ -820,7 +865,7 @@ class PopupManager {
     this.renderUrlList();
     this.renderConfigList();
     this.renderPromptList();
-    this.showStatus('✅ 已恢复默认设置，请点击保存', 'success');
+    this.showStatus(t('resetSuccess'), 'success');
   }
 
   private async exportConfig(): Promise<void> {
@@ -845,10 +890,10 @@ class PopupManager {
 
       URL.revokeObjectURL(url);
 
-      this.showStatus('✅ 配置已导出', 'success');
+      this.showStatus(t('configExported'), 'success');
     } catch (error) {
       console.error('导出失败:', error);
-      this.showStatus('❌ 导出失败: ' + (error as Error).message, 'error');
+      this.showStatus(t('exportFailed') + (error as Error).message, 'error');
     }
   }
 
@@ -863,21 +908,21 @@ class PopupManager {
       const importData = JSON.parse(text);
 
       if (!importData.data || !importData.version) {
-        this.showStatus('❌ 无效的配置文件格式', 'error');
+        this.showStatus(t('invalidConfig'), 'error');
         return;
       }
 
-      if (!confirm('确定要导入配置吗？当前配置将被覆盖。')) {
+      if (!confirm(t('confirmImport'))) {
         return;
       }
 
       await chrome.storage.sync.set(importData.data);
       await this.loadSettings();
 
-      this.showStatus('✅ 配置已导入，请刷新网页使配置生效', 'success');
+      this.showStatus(t('configImported'), 'success');
     } catch (error) {
       console.error('导入失败:', error);
-      this.showStatus('❌ 导入失败: ' + (error as Error).message, 'error');
+      this.showStatus(t('importFailed') + (error as Error).message, 'error');
     } finally {
       input.value = '';
     }
@@ -910,7 +955,7 @@ class PopupManager {
     const prompts = this.currentSettings.promptFiles || [];
 
     if (prompts.length === 0) {
-      this.promptList.innerHTML = '<div class="empty-state">暂无提示词配置</div>';
+      this.promptList.innerHTML = `<div class="empty-state">${t('emptyPromptList')}</div>`;
       return;
     }
 
@@ -920,7 +965,7 @@ class PopupManager {
         <div style="flex: 1;">
           <div style="font-weight: 500; color: #fff;">📝 ${this.escapeHtml(prompt.name)}</div>
           <div style="font-size: 11px; color: #888; margin-top: 2px;">
-            内容长度: ${prompt.path.length} 字符
+            ${t('contentLength', { length: prompt.path.length })}
           </div>
         </div>
         <div style="display: flex; gap: 6px;">
@@ -937,13 +982,13 @@ class PopupManager {
               font-size: 12px;
             "
           >
-            ✏️ 重命名
+            ${t('rename')}
           </button>
           <button 
             class="danger" 
             data-index="${index}"
           >
-            删除
+            ${t('delete')}
           </button>
         </div>
       </div>
@@ -989,12 +1034,12 @@ class PopupManager {
       }
 
       this.showStatus(
-        `✅ 已加载: ${file.name} (${this.currentFileContent.length} 字符)`,
+        t('fileLoaded', { name: file.name, length: this.currentFileContent.length }),
         'success'
       );
     } catch (error) {
       console.error('读取文件失败:', error);
-      this.showStatus('❌ 读取文件失败', 'error');
+      this.showStatus(t('readFileFailed'), 'error');
     }
   }
 
@@ -1002,7 +1047,7 @@ class PopupManager {
   private addPrompt(): void {
     // 验证：检查是否选择了文件
     if (!this.currentFileContent || this.currentFileContent.trim().length === 0) {
-      this.showStatus('❌ 请先选择文件', 'error');
+      this.showStatus(t('pleaseSelectFile'), 'error');
       const fileWrapper = document.getElementById('file-selector-wrapper');
       if (fileWrapper) {
         fileWrapper.style.borderColor = '#ff4444';
@@ -1023,7 +1068,7 @@ class PopupManager {
     );
 
     if (exists) {
-      this.showStatus(`❌ 提示词 "${this.currentFileName}" 已存在`, 'error');
+      this.showStatus(t('promptExists', { name: this.currentFileName }), 'error');
       return;
     }
 
@@ -1039,7 +1084,7 @@ class PopupManager {
 
     // 清空
     if (this.fileNameDisplay) {
-      this.fileNameDisplay.textContent = '未选择文件';
+      this.fileNameDisplay.textContent = t('noFileSelected');
       this.fileNameDisplay.style.color = '#888';
     }
     this.currentFileContent = '';
@@ -1052,7 +1097,7 @@ class PopupManager {
 
     this.saveDraft();
 
-    this.showStatus(`✅ 已添加提示词：${newPrompt.name}`, 'success');
+    this.showStatus(t('promptAdded', { name: newPrompt.name }), 'success');
   }
   private renamePrompt(index: number): void {
     if (!this.currentSettings.promptFiles) return;
@@ -1099,7 +1144,7 @@ class PopupManager {
 
       if (!newName) {
         nameElement.innerHTML = originalHTML;
-        this.showStatus('❌ 名称不能为空', 'error');
+        this.showStatus(t('nameEmpty'), 'error');
         return;
       }
 
@@ -1110,7 +1155,7 @@ class PopupManager {
 
       if (exists) {
         nameElement.innerHTML = originalHTML;
-        this.showStatus(`❌ 提示词 "${newName}" 已存在`, 'error');
+        this.showStatus(t('promptExists', { name: newName }), 'error');
         return;
       }
 
@@ -1119,7 +1164,7 @@ class PopupManager {
       nameElement.innerHTML = `📝 ${this.escapeHtml(newName)}`;
 
       this.saveDraft();
-      this.showStatus(`✅ 已重命名为：${newName}`, 'success');
+      this.showStatus(t('renamed', { name: newName }), 'success');
     };
 
     // 取消函数
@@ -1151,7 +1196,7 @@ class PopupManager {
     this.currentSettings.promptFiles.splice(index, 1);
     this.renderPromptList();
     this.saveDraft();
-    this.showStatus('✅ 已删除，请点击保存设置', 'success');
+    this.showStatus(t('deletedClickSave'), 'success');
   }
 
   private async loadPathMemoryData(): Promise<void> {
@@ -1178,7 +1223,7 @@ class PopupManager {
 
     const entries = Object.entries(this.pathMemory);
     if (entries.length === 0) {
-      this.memoryList.innerHTML = '<div class="empty-state">暂无路径记忆</div>';
+      this.memoryList.innerHTML = `<div class="empty-state">${t('emptyMemoryList')}</div>`;
       return;
     }
 
@@ -1190,8 +1235,8 @@ class PopupManager {
         </div>
         <div class="memory-path">${this.escapeHtml(path)}</div>
         <div class="memory-actions">
-          <button class="btn-edit" data-filename="${this.escapeHtml(filename)}" data-path="${this.escapeHtml(path)}">编辑</button>
-          <button class="btn-delete" data-filename="${this.escapeHtml(filename)}">删除</button>
+          <button class="btn-edit" data-filename="${this.escapeHtml(filename)}" data-path="${this.escapeHtml(path)}">${t('edit')}</button>
+          <button class="btn-delete" data-filename="${this.escapeHtml(filename)}">${t('delete')}</button>
         </div>
       </div>
     `)
@@ -1224,7 +1269,7 @@ class PopupManager {
     const path = this.memPathInput?.value.trim();
 
     if (!filename || !path) {
-      this.showStatus('请输入文件名和路径', 'error');
+      this.showStatus(t('enterFilenamePath'), 'error');
       return;
     }
 
@@ -1236,26 +1281,26 @@ class PopupManager {
     if (this.memPathInput) this.memPathInput.value = '';
 
     this.renderMemoryList();
-    this.showStatus('✅ 记忆已添加', 'success');
+    this.showStatus(t('memoryAdded'), 'success');
   }
 
   private async removeMemory(filename: string): Promise<void> {
-    if (confirm(`确定要删除 ${filename} 的路径记忆吗？`)) {
+    if (confirm(t('confirmDeleteMemory', { filename }))) {
       delete this.pathMemory[filename];
       const storageKey = `pathMemory_${this.activeProjectRoot}`;
       await chrome.storage.local.set({ [storageKey]: this.pathMemory });
       this.renderMemoryList();
-      this.showStatus('✅ 记忆已删除', 'success');
+      this.showStatus(t('memoryDeleted'), 'success');
     }
   }
 
   private async clearAllMemory(): Promise<void> {
-    if (confirm('确定要清空当前项目的路径记忆吗？此操作不可撤销。')) {
+    if (confirm(t('confirmClearMemory'))) {
       this.pathMemory = {};
       const storageKey = `pathMemory_${this.activeProjectRoot}`;
       await chrome.storage.local.set({ [storageKey]: {} });
       this.renderMemoryList();
-      this.showStatus('✅ 记忆已清空', 'success');
+      this.showStatus(t('memoryCleared'), 'success');
     }
   }
 }

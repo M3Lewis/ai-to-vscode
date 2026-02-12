@@ -1,3 +1,5 @@
+**中文** | [**English**](./README_EN.md)
+
 # AI to VSCode Bridge
 
 **AI to VSCode Bridge** 是一个 Chrome 扩展，旨在打通 AI 网页对话（如 ChatGPT, Claude, DeepWiki 等）与 VS Code 编辑器之间的壁垒。它允许你一键将网页上的代码块、对话内容发送到 VS Code，甚至直接创建文件或根据上下文自动补全代码。

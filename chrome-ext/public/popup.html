@@ -611,79 +611,82 @@
 </head>
 
 <body>
-  <h2>⚙️ AI to VSCode Bridge</h2>
-
-  <div class="setting-group">
-    <label for="port-input">WebSocket端口：</label>
-    <input type="number" id="port-input" value="8765" min="1024" max="65535">
-    <div class="hint">修改后需要重启VS Code扩展，默认：8765</div>
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid #3e3e3e; padding-bottom: 8px;">
+    <h2 style="border-bottom: none; margin-bottom: 0; padding-bottom: 0;" data-i18n="settingsTitle">⚙️ AI to VSCode Bridge</h2>
+    <button id="lang-toggle" style="background: transparent; border: 1px solid #555; color: #ccc; cursor: pointer; padding: 4px 8px; font-size: 12px; border-radius: 4px;">English</button>
   </div>
 
   <div class="setting-group">
-    <label>显示选项：</label>
+    <label for="port-input" data-i18n="portLabel">WebSocket端口：</label>
+    <input type="number" id="port-input" value="8765" min="1024" max="65535">
+    <div class="hint" data-i18n="portHint">修改后需要重启VS Code扩展，默认：8765</div>
+  </div>
+
+  <div class="setting-group">
+    <label data-i18n="displayOptionLabel">显示选项：</label>
     <div class="checkbox-group">
       <input type="checkbox" id="show-on-all-sites">
-      <label for="show-on-all-sites">在所有网站显示悬浮窗</label>
+      <label for="show-on-all-sites" data-i18n="showOnAllSitesLabel">在所有网站显示悬浮窗</label>
     </div>
-    <div class="hint">启用后悬浮窗将在所有网站显示，否则只在下方列表中的网站显示</div>
+    <div class="hint" data-i18n="showOnAllSitesHint">启用后悬浮窗将在所有网站显示，否则只在下方列表中的网站显示</div>
   </div>
 
   <div class="setting-group">
-    <label>启用的网站：</label>
+    <label data-i18n="enabledSitesLabel">启用的网站：</label>
     <div class="add-url-form">
-      <input type="text" id="new-url-input" placeholder="输入网站域名（如：perplexity.ai）">
-      <button id="add-url-btn">添加</button>
+      <input type="text" id="new-url-input" placeholder="输入网站域名（如：perplexity.ai）" data-i18n-placeholder="addUrlPlaceholder">
+      <button id="add-url-btn" data-i18n="addUrlBtn">添加</button>
     </div>
     <div class="url-list" id="url-list">
-      <div class="empty-state">暂无网站</div>
+      <div class="empty-state" data-i18n="emptyUrlList">暂无网站</div>
     </div>
-    <div class="hint">支持通配符，如：*.openai.com 匹配所有OpenAI子域名</div>
+    <div class="hint" data-i18n="urlListHint">支持通配符，如：*.openai.com 匹配所有OpenAI子域名</div>
   </div>
 
   <div class="setting-group">
-    <label>网站选择器配置（高级）：</label>
-    <div class="hint" style="margin-bottom: 8px;">
+    <label data-i18n="advancedConfigLabel">网站选择器配置（高级）：</label>
+    <div class="hint" style="margin-bottom: 8px;" data-i18n="advancedConfigHint">
       为特定网站自定义COPY按钮的CSS选择器，用于适配不同AI对话界面
     </div>
 
     <div class="selector-form">
-      <input type="text" id="config-hostname" placeholder="网站域名（如：perplexity.ai）">
-      <input type="text" id="config-selector" placeholder='COPY按钮选择器（如：button[aria-label="Copy"]）'>
-      <input type="text" id="config-container" placeholder="回答容器选择器（可选，用于定位最新回答）">
+      <input type="text" id="config-hostname" placeholder="网站域名（如：perplexity.ai）" data-i18n-placeholder="configHostnamePlaceholder">
+      <input type="text" id="config-selector" placeholder='COPY按钮选择器（如：button[aria-label="Copy"]）' data-i18n-placeholder="configSelectorPlaceholder">
+      <input type="text" id="config-container" placeholder="回答容器选择器（可选，用于定位最新回答）" data-i18n-placeholder="configContainerPlaceholder">
 
-      <button id="smart-find-btn">🔍 智能查找当前页面的COPY按钮</button>
-      <button id="add-config-btn">添加配置</button>
+      <button id="smart-find-btn" data-i18n="smartFindBtn">🔍 智能查找当前页面的COPY按钮</button>
+      <button id="add-config-btn" data-i18n="addConfigBtn">添加配置</button>
     </div>
 
     <div id="smart-find-modal" style="display: none;"></div>
 
     <div class="url-list" id="config-list">
-      <div class="empty-state">暂无自定义配置</div>
+      <div class="empty-state" data-i18n="emptyConfigList">暂无自定义配置</div>
     </div>
 
     <details>
-      <summary>💡 如何找到CSS选择器？</summary>
+      <summary data-i18n="howToFindSelector">💡 如何找到CSS选择器？</summary>
       <div>
-        <p style="margin-bottom: 8px;"><strong>方式1: 使用智能查找（推荐）</strong></p>
-        <ol style="margin-left: 20px; margin-bottom: 12px;">
-          <li>在AI网站打开对话并获得回答</li>
-          <li>点击扩展图标打开设置</li>
-          <li>点击"🔍 智能查找"按钮</li>
-          <li>从列表中选择合适的按钮</li>
-          <li>自动填充到配置中</li>
-        </ol>
+        <p style="margin-bottom: 8px;"><strong data-i18n="smartFindMethod">方式1: 使用智能查找（推荐）</strong></p>
+        <p style="margin-left: 20px; white-space: pre-line; margin-bottom: 12px;" data-i18n="smartFindSteps">
+          1. 在AI网站打开对话并获得回答
+          2. 点击扩展图标打开设置
+          3. 点击"🔍 智能查找"按钮
+          4. 从列表中选择合适的按钮
+          5. 自动填充到配置中
+        </p>
 
-        <p style="margin-bottom: 8px;"><strong>方式2: 手动查找</strong></p>
-        <ol style="margin-left: 20px;">
-          <li>在AI网站按 <strong>F12</strong> 打开开发者工具</li>
-          <li>右键点击COPY按钮 → 选择"<strong>检查</strong>"</li>
-          <li>在Elements标签，右键高亮的元素</li>
-          <li>选择 Copy → <strong>Copy selector</strong></li>
-          <li>粘贴到"COPY按钮选择器"输入框</li>
-          <li>点击"添加配置"并保存设置</li>
-        </ol>
+        <p style="margin-bottom: 8px;"><strong data-i18n="manualFindMethod">方式2: 手动查找</strong></p>
+        <p style="margin-left: 20px; white-space: pre-line;" data-i18n="manualFindSteps">
+          1. 在AI网站按 F12 打开开发者工具
+          2. 右键点击COPY按钮 → 选择"检查"
+          3. 在Elements标签，右键高亮的元素
+          4. 选择 Copy → Copy selector
+          5. 粘贴到"COPY按钮选择器"输入框
+          6. 点击"添加配置"并保存设置
+        </p>
         <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #3e3e3e;">
-          <strong>常见选择器示例：</strong><br>
+          <strong data-i18n="commonSelectors">常见选择器示例：</strong><br>
           • button[aria-label="Copy"]<br>
           • button.copy-button<br>
           • [data-testid="copy-btn"]
@@ -693,8 +696,8 @@
   </div>
 
   <div class="setting-group">
-    <label>AI Studio 提示词管理（System Instructions）：</label>
-    <div class="hint" style="margin-bottom: 8px;">
+    <label data-i18n="promptManageLabel">AI Studio 提示词管理（System Instructions）：</label>
+    <div class="hint" style="margin-bottom: 8px;" data-i18n="promptManageHint">
       选择本地 Markdown 文件作为提示词模板，文件名将作为提示词名称
     </div>
 
@@ -716,7 +719,7 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-    ">未选择文件</span>
+    " data-i18n="noFileSelected">未选择文件</span>
 
       <button id="select-file-btn" style="
         padding: 6px 12px;
@@ -728,7 +731,7 @@
         font-size: 12px;
         white-space: nowrap;
         transition: background 0.2s;
-      " onmouseover="this.style.background='#5a5a5a'" onmouseout="this.style.background='#4a4a4a'">
+      " onmouseover="this.style.background='#5a5a5a'" onmouseout="this.style.background='#4a4a4a'" data-i18n="selectFileBtn">
         📁 选择文件
       </button>
 
@@ -742,7 +745,7 @@
         font-size: 12px;
         white-space: nowrap;
         transition: background 0.2s;
-      " onmouseover="this.style.background='#0056b3'" onmouseout="this.style.background='#007bff'">
+      " onmouseover="this.style.background='#0056b3'" onmouseout="this.style.background='#007bff'" data-i18n="addPromptBtn">
         添加提示词
       </button>
     </div>
@@ -750,23 +753,23 @@
     <input type="file" id="prompt-file-input" accept=".md,.markdown,.txt" style="display: none;">
 
     <div class="url-list" id="prompt-list" style="margin-top: 12px;">
-      <div class="empty-state">暂无提示词配置</div>
+      <div class="empty-state" data-i18n="emptyPromptList">暂无提示词配置</div>
     </div>
 
     <details>
-      <summary>💡 如何使用提示词功能？</summary>
+      <summary data-i18n="howToUsePrompts">💡 如何使用提示词功能？</summary>
       <div>
-        <ol style="margin-left: 20px;">
-          <li>点击"📁 选择文件"，选择 Markdown 文件</li>
-          <li>文件名将自动作为提示词名称</li>
-          <li>点击"添加提示词"</li>
-          <li>保存设置后，悬浮窗会显示对应按钮</li>
-          <li>在 AI Studio 点击按钮快速切换提示词</li>
-        </ol>
-        <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #3e3e3e;">
-          <strong>提示：</strong><br>
-          • 支持 .md、.markdown、.txt 格式<br>
-          • 文件名会去掉扩展名作为显示名称<br>
+        <p style="white-space: pre-line; margin-left: 20px;" data-i18n="promptSteps">
+          1. 点击"📁 选择文件"，选择 Markdown 文件
+          2. 文件名将自动作为提示词名称
+          3. 点击"添加提示词"
+          4. 保存设置后，悬浮窗会显示对应按钮
+          5. 在 AI Studio 点击按钮快速切换提示词
+        </p>
+        <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #3e3e3e; white-space: pre-line;" data-i18n="promptTips">
+          提示：
+          • 支持 .md、.markdown、.txt 格式
+          • 文件名会去掉扩展名作为显示名称
           • 仅在 AI Studio 网站显示此功能
         </div>
       </div>
@@ -774,55 +777,55 @@
   </div>
 
   <div class="setting-group">
-    <label>📂 文件保存路径：</label>
-    <div class="hint" style="margin-bottom: 8px;">
+    <label data-i18n="savePathLabel">📂 文件保存路径：</label>
+    <div class="hint" style="margin-bottom: 8px;" data-i18n="savePathHint">
       设置文件保存到 VS Code 项目中的相对路径（留空则保存到根目录）
     </div>
 
-    <input type="text" id="save-path" placeholder="例如：docs/ai-responses 或 output" style="width: 100%;">
+    <input type="text" id="save-path" placeholder="例如：docs/ai-responses 或 output" style="width: 100%;" data-i18n-placeholder="savePathPlaceholder">
 
-    <div style="font-size: 12px; color: #888; margin-top: 6px;">
+    <div style="font-size: 12px; color: #888; margin-top: 6px;" data-i18n="savePathTip">
       💡 提示：路径会自动创建（如不存在），无需以 / 开头或结尾
     </div>
   </div>
 
   <div class="setting-group memory-section">
-    <label>📂 路径记忆管理：</label>
+    <label data-i18n="memoryManageLabel">📂 路径记忆管理：</label>
     <div id="active-project-display"
       style="font-size: 12px; color: #6c5ce7; margin-bottom: 8px; padding: 6px; background: #2d2d2d; border-radius: 4px; border: 1px solid #3e3e3e; display: none;">
-      当前项目: <span id="project-path-text">未连接</span>
+      <span data-i18n="currentProject">当前项目:</span> <span id="project-path-text" data-i18n="notConnected">未连接</span>
     </div>
-    <div class="hint" style="margin-bottom: 12px;">
+    <div class="hint" style="margin-bottom: 12px;" data-i18n="memoryHint">
       管理插件记住的文件路径。路径记忆已按 VS Code 项目隔离。
     </div>
 
     <div class="memory-form">
-      <h3>➕ 手动添加/修改记忆</h3>
-      <input type="text" id="mem-filename" placeholder="文件名 (如: SKILL.md)">
-      <input type="text" id="mem-path" placeholder="所在目录 (如: docs/project)">
-      <button class="primary" id="add-mem-btn" style="width: 100%; padding: 8px; margin-top: 4px;">添加记忆</button>
+      <h3 data-i18n="addMemoryTitle">➕ 手动添加/修改记忆</h3>
+      <input type="text" id="mem-filename" placeholder="文件名 (如: SKILL.md)" data-i18n-placeholder="memFilenamePlaceholder">
+      <input type="text" id="mem-path" placeholder="所在目录 (如: docs/project)" data-i18n-placeholder="memPathPlaceholder">
+      <button class="primary" id="add-mem-btn" style="width: 100%; padding: 8px; margin-top: 4px;" data-i18n="addMemBtn">添加记忆</button>
     </div>
 
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-      <label style="margin: 0;">已记住的路径：</label>
+      <label style="margin: 0;" data-i18n="rememberedPathsLabel">已记住的路径：</label>
       <button class="btn-delete" id="clear-mem-btn"
-        style="padding: 4px 10px; font-size: 12px; border-radius: 4px;">清空全部</button>
+        style="padding: 4px 10px; font-size: 12px; border-radius: 4px;" data-i18n="clearMemBtn">清空全部</button>
     </div>
 
     <div id="memory-list" class="url-list" style="max-height: 300px;">
-      <div class="empty-state">暂无路径记忆</div>
+      <div class="empty-state" data-i18n="emptyMemoryList">暂无路径记忆</div>
     </div>
   </div>
 
 
   <div class="button-group">
-    <button class="primary" id="save-settings">💾 保存设置</button>
-    <button class="secondary" id="reset-defaults">🔄 恢复默认</button>
+    <button class="primary" id="save-settings" data-i18n="saveSettingsBtn">💾 保存设置</button>
+    <button class="secondary" id="reset-defaults" data-i18n="resetDefaultsBtn">🔄 恢复默认</button>
   </div>
 
   <div class="button-group" style="margin-bottom: 16px;">
-    <button class="tertiary" id="export-config">📤 导出配置</button>
-    <button class="tertiary" id="import-config">📥 导入配置</button>
+    <button class="tertiary" id="export-config" data-i18n="exportConfigBtn">📤 导出配置</button>
+    <button class="tertiary" id="import-config" data-i18n="importConfigBtn">📥 导入配置</button>
   </div>
 
   <div style="height: 24px;"></div>
