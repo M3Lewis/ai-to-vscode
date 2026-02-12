@@ -59,7 +59,8 @@ Get-ChildItem $releaseDir | Select-Object Name, Length
 
 # 6. GitHub Release 提示
 Write-Host "`n📣 GitHub Release" -ForegroundColor Cyan
-$ghCommand = "gh release create v$version $(Join-Path $releaseDir '*') --title `"v$version`" --notes `"Release v$version`""
+$releasePattern = Join-Path $releaseDir "*"
+$ghCommand = 'gh release create v' + $version + ' "' + $releasePattern + '" --title "v' + $version + '" --notes "Release v' + $version + '"'
 
 if (Get-Command gh -ErrorAction SilentlyContinue) {
     $response = Read-Host "检测到 gh CLI，是否直接发布到 GitHub? (y/N)"
