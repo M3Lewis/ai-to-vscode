@@ -1,7 +1,7 @@
 {
   "name": "ai-to-vscode-bridge",
   "version": "1.0.0",
-  "description": "将AI对话内容发送到VS Code",
+  "description": "旨在打通 AI 网页对话与 VS Code 之间的壁垒，一键发送代码块、对话内容至 VS Code 并自动保存。",
   "scripts": {
     "dev": "webpack --config webpack.dev.js",
     "build": "webpack --config webpack.prod.js",
