@@ -120,12 +120,19 @@ npx vsce package
 ```
 A `.vsix` file will be generated upon successful execution.
 
-### 2. Chrome Extension (`.zip`)
-1. Run in the `chrome-ext` directory:
-   ```bash
-   npm run build
-   ```
-2. Compress the generated `dist` folder into `.zip` format. Users can use it by loading this zip file or the unzipped folder.
+### 3. Automated Release Script
+If you are in a PowerShell environment, you can use our provided automation script to complete all the above steps:
+
+```powershell
+.\scripts\release.ps1
+```
+The script will automatically:
+1. Detect the current version number.
+2. Build and package the Chrome extension as a `.zip`.
+3. Package the VS Code extension as a `.vsix`.
+4. (Optional) Prompt you to use the `gh` CLI to publish directly to GitHub Release.
+
+---
 
 ## 🖌️ Interface & Interaction
 

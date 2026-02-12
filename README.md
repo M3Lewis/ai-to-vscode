@@ -127,6 +127,20 @@ npx vsce package
    ```
 2. 将生成的 `dist` 文件夹压缩为 `.zip` 格式即可。用户可通过加载此压缩包或其中的解压文件夹来使用。
 
+### 3. 一键发布脚本 (Automated Release)
+如果你是在 PowerShell 环境下，可以使用我们提供的自动化脚本来完成以上所有步骤：
+
+```powershell
+.\scripts\release.ps1
+```
+该脚本会自动：
+1. 检测当前版本号。
+2. 构建并打包 Chrome 扩展为 `.zip`。
+3. 打包 VS Code 扩展为 `.vsix`。
+4. (可选) 提示你是否使用 `gh` CLI 直接发布到 GitHub Release。
+
+---
+
 ## 🖌️ 界面与交互
 
 ### 浮动面板 (Floating Panel)
