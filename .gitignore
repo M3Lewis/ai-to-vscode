@@ -44,3 +44,6 @@ vscode-ext/.vscode-test/
 vscode-ext/*.vsix
 vscode-ext/.DS_Store
 
+# 忽略打包产物目录
+releases/
+
