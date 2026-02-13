@@ -162,6 +162,13 @@ savePath 是否为空: ${!savePath}
     const filePath = path.join(targetDir, filename);
     fs.appendFileSync(logPath, `完整路径: ${filePath}\n\n`);
 
+    // 确保父目录存在 (处理嵌套文件路径 e.g. "folder/file.ts")
+    const parentDir = path.dirname(filePath);
+    if (!fs.existsSync(parentDir)) {
+      await fs.promises.mkdir(parentDir, { recursive: true });
+      fs.appendFileSync(logPath, `✅ 已自动创建父目录: ${parentDir}\n`);
+    }
+
     // 写入文件
     await fs.promises.writeFile(filePath, content, 'utf8');
 
@@ -201,6 +208,13 @@ async function handlePatchFile(ws: WebSocket, message: any): Promise<void> {
     const normalizedPath = (savePath || '').trim().replace(/^[\/\\]+|[\/\\]+$/g, '');
     const targetDir = path.join(workspaceFolder.uri.fsPath, normalizedPath);
     const filePath = path.join(targetDir, filename);
+
+    // 确保父目录存在
+    const parentDir = path.dirname(filePath);
+    if (!fs.existsSync(parentDir)) {
+      await fs.promises.mkdir(parentDir, { recursive: true });
+      console.log(`✅ 已自动创建父目录: ${parentDir}`);
+    }
 
     if (!fs.existsSync(filePath)) {
       console.log(`文件不存在，回退到全量保存: ${filePath}`);
