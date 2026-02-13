@@ -840,22 +840,35 @@ class FloatingPanel {
         try {
           await this.delay(300);
 
-          console.log(`Clicking file button: ${file.name}`);
+          let fileNameWithDirectory = file.name;
+          let customSavePath = '';
+
+          // 路径记忆增强：如果文件名中没有路径，尝试从记忆中恢复
+          if (!fileNameWithDirectory.includes('/') && !fileNameWithDirectory.includes('\\')) {
+            const lowerFilename = fileNameWithDirectory.toLowerCase();
+            const memoryKey = Object.keys(this.pathMemory).find(k => k.toLowerCase() === lowerFilename);
+            if (memoryKey) {
+              customSavePath = this.pathMemory[memoryKey];
+              console.log(`🧠 AI Studio 路径记忆匹配: ${fileNameWithDirectory} -> ${customSavePath}`);
+            }
+          }
+
+          console.log(`Clicking file button: ${fileNameWithDirectory}`);
           file.button.click();
 
-          const isReady = await this.waitForMonacoReady(8000, file.name);
+          const isReady = await this.waitForMonacoReady(8000, fileNameWithDirectory);
           if (!isReady) {
-            console.warn(`File ${file.name} may not be fully loaded; proceeding anyway.`);
+            console.warn(`File ${fileNameWithDirectory} may not be fully loaded; proceeding anyway.`);
           }
 
           await this.delay(300);
 
           const content = await this.extractCodeFromMonaco();
           if (content && content.length > 0) {
-            console.log(`Sending to VS Code: ${file.name} (${content.length} chars)`);
-            await this.sendToVSCode(content, file.name);
+            console.log(`Sending to VS Code: ${fileNameWithDirectory} (${content.length} chars), savePath: ${customSavePath}`);
+            await this.sendToVSCode(content, fileNameWithDirectory, customSavePath);
             successCount++;
-            console.log(`Synced: ${file.name}`);
+            console.log(`Synced: ${fileNameWithDirectory}`);
           } else {
             console.warn(`Empty content for file: ${file.name}`);
             this.showNotification(t('fileContentEmpty', { name: file.name }), 'error');
