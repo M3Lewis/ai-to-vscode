@@ -184,6 +184,19 @@ const translations: Translations = {
     'sysInstrTextareaNotFound': { zh: '未找到 System Instructions 输入框', en: 'System Instructions textarea not found' },
     'appliedPrompt': { zh: '已应用: ${name}', en: 'Applied: ${name}' },
     'applyPromptFailed': { zh: '应用失败', en: 'Apply failed' },
+    'capturing': { zh: '正在捕获...', en: 'Capturing...' },
+    'elementCaptureCopied': { zh: '✅ 元素信息与截图已合并复制，请 Ctrl+V 粘贴', en: '✅ Element info and screenshot merged to clipboard. Press Ctrl+V to paste.' },
+    'screenshotCopiedShort': { zh: '✅ 截图已复制，请 Ctrl+V 粘贴', en: '✅ Screenshot copied. Press Ctrl+V to paste.' },
+    'computedStyles': { zh: '计算样式', en: 'Computed Styles' },
+    'innerClipboardText': { zh: '内部文本', en: 'Inner Text' },
+    'elementInfo': { zh: '元素', en: 'Element' },
+    'htmlInfo': { zh: 'HTML', en: 'HTML' },
+    'waitMonacoReady': { zh: '等待 Monaco 编辑器就绪...', en: 'Waiting for Monaco editor ready...' },
+    'monacoReady': { zh: 'Monaco 编辑器已就绪', en: 'Monaco editor ready' },
+    'extractingContent': { zh: '正在提取内容...', en: 'Extracting content...' },
+    'extractedTurns': { zh: '找到 ${count} 轮对话，开始提取...', en: 'Found ${count} turns. Extracting...' },
+    'syncingFiles': { zh: '正在同步 (${current}/${total}): ${name}', en: 'Syncing (${current}/${total}): ${name}' },
+    'syncedCount': { zh: '已同步 ${count} 个文件到 VS Code', en: 'Synced ${count} files to VS Code' },
 
 
     // --- Popup Confirms & Status (Added) ---
