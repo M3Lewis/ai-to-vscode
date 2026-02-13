@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "AI to VSCode Bridge",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "旨在打通 AI 网页对话与 VS Code 之间的壁垒，一键发送代码块、对话内容至 VS Code 并自动保存。",
   "permissions": [
     "activeTab",
