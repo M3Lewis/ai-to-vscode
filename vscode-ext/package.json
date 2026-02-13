@@ -1,7 +1,7 @@
 {
   "name": "ai-vscode-bridge",
   "displayName": "AI to VSCode Bridge",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "publisher": "your-publisher-name",
   "description": "接收来自Chrome的AI对话内容并保存到工作区",
   "repository": {
