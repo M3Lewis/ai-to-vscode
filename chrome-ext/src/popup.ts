@@ -163,21 +163,22 @@ class PopupManager {
   }
 
   private async loadSettings(): Promise<void> {
-    // 先加载正式配置，使用单一 key "settings"
+    // 加载配置，使用单一 key "settings"
     const result = await chrome.storage.sync.get('settings');
     let settings: Settings;
     if (result.settings) {
       settings = result.settings as Settings;
     } else {
-      // 回退到旧格式（兼容性）
-      const oldSettings = await chrome.storage.sync.get({
+      // 创建默认设置（新格式）
+      settings = {
         port: 8765,
         enabledUrls: [...DEFAULT_URLS],
         showOnAllSites: false,
         siteConfigs: [],
-        promptFiles: []
-      }) as Settings;
-      settings = oldSettings;
+        promptFiles: [],
+        savePath: '',
+        language: 'zh'
+      };
     }
 
     // 从 local 加载提示词文件（分离存储）
