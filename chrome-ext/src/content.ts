@@ -2221,7 +2221,7 @@ class FloatingPanel {
   }
 
   private async extractCodeFromMonaco(): Promise<string | null> {
-    console.log('🔍 核心提取：尝试 Scroll-and-Scrape 策略...');
+    this.debugLog('🔍 核心提取：尝试 Scroll-and-Scrape 策略...');
 
     // 1. 查找编辑器滚动容器
     const scrollable = document.querySelector('.monaco-scrollable-element') ||
@@ -2256,18 +2256,24 @@ class FloatingPanel {
     const originalScrollTop = scrollable.scrollTop;
 
     // 关键修复：强制置顶并验证
-    console.log('⬆️ 正在重置滚动条到顶部...');
+    this.debugLog('⬆️ 正在重置滚动条到顶部...');
     let resetAttempts = 0;
-    while (scrollable.scrollTop > 0 && resetAttempts < 5) {
+
+    // 尝试重置多次，增加延迟，确保UI响应
+    while (scrollable.scrollTop > 5 && resetAttempts < 10) {
       scrollable.scrollTop = 0;
-      await this.delay(150);
+      await this.delay(200); // 增加等待时间
       resetAttempts++;
+
+      if (scrollable.scrollTop > 5) {
+         this.debugWarn(`⚠️ Scroll reset attempt ${resetAttempts} failed. Current top: ${scrollable.scrollTop}`);
+      }
     }
 
-    if (scrollable.scrollTop > 0) {
-      console.warn('⚠️ Scroll reset may have failed. Current top:', scrollable.scrollTop);
+    if (scrollable.scrollTop > 5) {
+      console.error('❌ Scroll reset failed. Continuing anyway but content may be incomplete. Top:', scrollable.scrollTop);
     } else {
-      console.log('Scroll reset complete. Starting scrape.');
+      this.debugLog('✅ Scroll reset complete (or close enough). Starting scrape.');
     }
 
     let lastScrollTop = -1;
@@ -2299,7 +2305,7 @@ class FloatingPanel {
     const sortedKeys = Array.from(collectedLines.keys()).sort((a, b) => a - b);
     const finalContent = sortedKeys.map(key => collectedLines.get(key)).join('\n');
 
-    console.log(`✅ 提取完成 (Scroll-based): 共采集到独特行 ${collectedLines.size}, 字符数 ${finalContent.length}`);
+    this.debugLog(`✅ 提取完成 (Scroll-based): 共采集到独特行 ${collectedLines.size}, 字符数 ${finalContent.length}`);
 
     if (finalContent.length === 0) {
       console.warn(t('contentEmpty'));

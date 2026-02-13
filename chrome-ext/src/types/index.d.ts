@@ -10,7 +10,7 @@ export interface ClonePagePackage {
   };
 }
 
-interface MessageToVSCode {
+export interface MessageToVSCode {
   action: 'sendToVSCode';
   content?: string;
   filename?: string;
@@ -20,7 +20,7 @@ interface MessageToVSCode {
   dataUrl?: string; // 截图数据
 }
 
-interface MessageResponse {
+export interface MessageResponse {
   success: boolean;
   error?: string;
   path?: string;  // 可选：返回完整保存路径
