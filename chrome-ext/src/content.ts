@@ -2601,6 +2601,7 @@ class FloatingPanel {
       // 获取保存路径配置
       const settings = await chrome.storage.sync.get({ savePath: '' });
       const defaultSavePath = (settings.savePath || '').trim();
+      console.log('🔧 sendToVSCode: defaultSavePath =', defaultSavePath, 'customSavePath =', customSavePath);
 
       // 如果有自定义路径，则拼接到默认路径后，或者直接使用
       let finalSavePath = customSavePath || '';
@@ -2611,6 +2612,7 @@ class FloatingPanel {
           finalSavePath = defaultSavePath;
         }
       }
+      console.log('🔧 sendToVSCode: finalSavePath =', finalSavePath);
 
       const message: MessageToVSCode = {
         action: 'sendToVSCode',

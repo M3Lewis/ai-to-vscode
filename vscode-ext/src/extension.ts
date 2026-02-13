@@ -110,6 +110,7 @@ function stopWebSocketServer() {
 // ✅ 修复：函数签名保持不变，处理 ws 和 message
 async function handleSaveFile(ws: WebSocket, message: any): Promise<void> {
   const { content, filename, savePath } = message;
+  console.log('🔧 handleSaveFile: filename=', filename, 'savePath=', savePath);
 
   // 写入日志
   const logPath = path.join(require('os').homedir(), 'Desktop', 'vscode-debug.log');
