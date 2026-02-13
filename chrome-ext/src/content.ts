@@ -2598,9 +2598,11 @@ class FloatingPanel {
 
   private async sendToVSCode(content: string, filename: string, customSavePath?: string, type: 'save' | 'patch' = 'save'): Promise<void> {
     try {
-      // 获取保存路径配置
-      const settings = await chrome.storage.sync.get({ savePath: '' });
-      const defaultSavePath = (settings.savePath || '').trim();
+      // 获取保存路径配置（兼容旧版本和新版本存储格式）
+      const data = await chrome.storage.sync.get(['savePath', 'settings']);
+      console.log('🔧 sendToVSCode: storage data =', data);
+      // 优先使用根级别 savePath，其次使用 settings.savePath
+      const defaultSavePath = (data.savePath || data.settings?.savePath || '').trim();
       console.log('🔧 sendToVSCode: defaultSavePath =', defaultSavePath, 'customSavePath =', customSavePath);
 
       // 如果有自定义路径，则拼接到默认路径后，或者直接使用
