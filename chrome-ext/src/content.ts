@@ -2227,18 +2227,33 @@ class FloatingPanel {
         return;
       }
 
-      let message = textarea.value || '';
-      if (!message.trim()) {
-        message = textarea.placeholder || '';
+      const normalizeMessage = (raw: string): string => raw.replace(/[\u21AA\u21E5]$/g, '').trim();
+      const readCommitMessage = (): string => {
+        const value = (textarea.value || '').trim();
+        const placeholder = (textarea.placeholder || '').trim();
+        return normalizeMessage(value || placeholder);
+      };
+      const isDefaultCommitMessage = (msg: string): boolean => /^commit message$/i.test(msg);
+
+      let message = '';
+      const waitTimeoutMs = 8000;
+      const pollIntervalMs = 200;
+      const waitStart = Date.now();
+
+      while (Date.now() - waitStart < waitTimeoutMs) {
+        message = readCommitMessage();
+        if (message && !isDefaultCommitMessage(message)) {
+          break;
+        }
+        await this.delay(pollIntervalMs);
       }
 
-      if (!message.trim()) {
-        console.warn('[ai-to-vscode] Commit message is empty');
+      if (!message || isDefaultCommitMessage(message)) {
+        console.warn('[ai-to-vscode] Commit message is still default/empty after waiting');
         this.showError(t('extractCommitMsgFailed'));
         return;
       }
 
-      message = message.replace(/[\u21AA\u21E5]$/g, '').trim();
       await this.copyToClipboard(null, message);
       this.showSuccess(t('commitMsgCopied'));
     } catch (err) {
