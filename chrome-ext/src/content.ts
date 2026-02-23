@@ -2156,58 +2156,93 @@ class FloatingPanel {
   }
 
   private async syncCommitMessage(): Promise<void> {
-    console.log('🔍 尝试同步 Commit Message...');
+    console.log('[ai-to-vscode] Sync commit message');
     this.showNotification(t('fetchingCommitMsg'), 'success');
 
     try {
-      // 1. 查找并点击 GitHub 按钮
-      const githubBtn = document.querySelector('ms-github-trigger-button button') as HTMLElement ||
-        document.querySelector('ms-github-trigger-button') as HTMLElement;
+      const isClickable = (el: HTMLElement | null): el is HTMLElement => {
+        if (!el) return false;
+        if (el.getAttribute('aria-disabled') === 'true') return false;
+        return el.offsetParent !== null;
+      };
+
+      const findFirstClickable = (selectors: string[]): HTMLElement | null => {
+        for (const selector of selectors) {
+          const candidates = Array.from(document.querySelectorAll<HTMLElement>(selector));
+          const match = candidates.find(isClickable);
+          if (match) return match;
+        }
+        return null;
+      };
+
+      const settingsBtn = findFirstClickable([
+        'button[iconname="settings"]',
+        'button[aria-label*="\u8bbe\u7f6e"]',
+        'button[aria-label*="Setting"]'
+      ]);
+
+      if (settingsBtn) {
+        settingsBtn.click();
+        await this.delay(500);
+      }
+
+      let githubBtn = findFirstClickable([
+        'button.filter-chip[data-view="3"]',
+        'button[data-view="3"]',
+        'button[aria-label*="GitHub"]'
+      ]);
+
       if (!githubBtn) {
-        console.warn('⚠️ 未找到 ms-github-trigger-button');
+        const githubByText = Array.from(document.querySelectorAll<HTMLElement>('button'))
+          .find(btn => isClickable(btn) && /github/i.test((btn.textContent || '').trim()));
+        if (githubByText) {
+          githubBtn = githubByText;
+        }
+      }
+
+      if (!githubBtn) {
+        githubBtn = findFirstClickable([
+          'ms-github-trigger-button button',
+          'ms-github-trigger-button'
+        ]);
+      }
+
+      if (!githubBtn) {
+        console.warn('[ai-to-vscode] GitHub sync entry not found');
         this.showError(t('noGithubButton'));
         return;
       }
-      githubBtn.click();
-      console.log('✅ 已点击 GitHub 按钮，等待面板展开...');
 
-      // 2. 等待面板打开和 textarea 加载
-      await this.delay(1500);
-      console.log('🔔 查找 commit message textarea...');
-      const textarea = await DOMHelper.waitForElement('textarea[formcontrolname="message"]', 5000) as HTMLTextAreaElement;
+      githubBtn.click();
+      await this.delay(1000);
+
+      const textarea = await DOMHelper.waitForElement(
+        'textarea[formcontrolname="message"], textarea.in-run-settings',
+        5000
+      ) as HTMLTextAreaElement | null;
 
       if (!textarea) {
-        console.warn('⚠️ commit message textarea not found');
+        console.warn('[ai-to-vscode] Commit message textarea not found');
         this.showError(t('commitMsgInputNotFound'));
         return;
       }
 
-      // 3. 提取内容
-      // AI Studio 的建议往往放在 placeholder 中，或者是异步填充到 value
       let message = textarea.value || '';
-
       if (!message.trim()) {
-        console.log('💡 Value 为空，尝试从 Placeholder 提取...');
         message = textarea.placeholder || '';
       }
 
       if (!message.trim()) {
-        console.warn('⚠️ Commit message is empty (value and placeholder).');
+        console.warn('[ai-to-vscode] Commit message is empty');
         this.showError(t('extractCommitMsgFailed'));
         return;
       }
 
-      // 清理：去掉末尾可能存在的提示性字符 (如 ↵ \u21AA 或 ⇥ \u21E5)
       message = message.replace(/[\u21AA\u21E5]$/g, '').trim();
-
-      console.log('✅ 提取到 Commit Message:', message);
-
-      // 4. 复制到剪贴板
       await this.copyToClipboard(null, message);
       this.showSuccess(t('commitMsgCopied'));
-
     } catch (err) {
-      console.error('❌ ' + t('syncCommitMsgFailed') + ':', err);
+      console.error('[ai-to-vscode] ' + t('syncCommitMsgFailed') + ':', err);
     }
   }
 
