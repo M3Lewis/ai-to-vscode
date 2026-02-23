@@ -6,6 +6,17 @@ import { WebSocketServer, WebSocket } from 'ws';
 let wss: WebSocketServer | null = null;
 let statusBarItem: vscode.StatusBarItem;
 
+function isWindowsAbsolutePath(input: string): boolean {
+  return /^[a-zA-Z]:[\\/]/.test(input) || input.startsWith('\\\\');
+}
+
+function isAbsolutePath(input: string): boolean {
+  if (!input) return false;
+  return process.platform === 'win32'
+    ? isWindowsAbsolutePath(input)
+    : input.startsWith('/') || isWindowsAbsolutePath(input);
+}
+
 export function activate(context: vscode.ExtensionContext) {
   console.log('AI VSCode Bridge 已激活');
 
@@ -147,8 +158,11 @@ savePath 是否为空: ${!savePath}
 
     // 处理 savePath
     if (savePath && savePath.trim()) {
-      const normalizedPath = savePath.trim().replace(/^[\/\\]+|[\/\\]+$/g, '');
-      targetDir = path.join(workspaceFolder.uri.fsPath, normalizedPath);
+      const trimmedSavePath = savePath.trim();
+      const normalizedPath = trimmedSavePath.replace(/^[\/\\]+|[\/\\]+$/g, '');
+      targetDir = isAbsolutePath(trimmedSavePath)
+        ? path.normalize(trimmedSavePath)
+        : path.join(workspaceFolder.uri.fsPath, normalizedPath);
 
       fs.appendFileSync(logPath, `最终目录: ${targetDir}\n`);
 
@@ -160,7 +174,9 @@ savePath 是否为空: ${!savePath}
       fs.appendFileSync(logPath, '⚠️ savePath 为空！使用根目录\n');
     }
 
-    const filePath = path.join(targetDir, filename);
+    const filePath = isAbsolutePath(filename)
+      ? path.normalize(filename)
+      : path.join(targetDir, filename);
     fs.appendFileSync(logPath, `完整路径: ${filePath}\n\n`);
 
     // 确保父目录存在 (处理嵌套文件路径 e.g. "folder/file.ts")
@@ -206,9 +222,14 @@ async function handlePatchFile(ws: WebSocket, message: any): Promise<void> {
   }
 
   try {
-    const normalizedPath = (savePath || '').trim().replace(/^[\/\\]+|[\/\\]+$/g, '');
-    const targetDir = path.join(workspaceFolder.uri.fsPath, normalizedPath);
-    const filePath = path.join(targetDir, filename);
+    const trimmedSavePath = (savePath || '').trim();
+    const normalizedPath = trimmedSavePath.replace(/^[\/\\]+|[\/\\]+$/g, '');
+    const targetDir = isAbsolutePath(trimmedSavePath)
+      ? path.normalize(trimmedSavePath)
+      : path.join(workspaceFolder.uri.fsPath, normalizedPath);
+    const filePath = isAbsolutePath(filename)
+      ? path.normalize(filename)
+      : path.join(targetDir, filename);
 
     // 确保父目录存在
     const parentDir = path.dirname(filePath);
